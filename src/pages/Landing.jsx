@@ -1,8 +1,26 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import api from '../api';
 
 const Landing = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [url, setUrl] = useState('');
+  const [isScanning, setIsScanning] = useState(false);
+  const navigate = useNavigate();
+
+  const handleScan = async () => {
+    if (!url) return;
+    setIsScanning(true);
+    try {
+      const response = await api.post('/scan', { url });
+      navigate(`/scanning?scan_id=${response.data.scan_id}`);
+    } catch (error) {
+      console.error("Scan initialization failed", error);
+      alert("Failed to start scan. Is the backend running?");
+    } finally {
+      setIsScanning(false);
+    }
+  };
 
   return (
     <div className="bg-background text-on-background selection:bg-primary/30 w-full overflow-x-hidden min-h-screen">
@@ -34,12 +52,12 @@ const Landing = () => {
         {/* Mobile Dropdown Menu */}
         {isMobileMenuOpen && (
           <div className="md:hidden absolute top-full left-0 w-full bg-surface-container-high border-b border-t border-outline-variant/20 p-4 flex flex-col gap-4 shadow-xl z-50">
-            <Link to="/report" className="text-[#a1faff] font-headline text-sm tracking-widest uppercase py-2">Features</Link>
-            <Link to="/scanning" className="text-[#e4e7fb] font-headline text-sm tracking-widest uppercase py-2">Technology</Link>
-            <Link to="/dashboard" className="text-[#e4e7fb] font-headline text-sm tracking-widest uppercase py-2">Security</Link>
-            <Link to="#" className="text-[#e4e7fb] font-headline text-sm tracking-widest uppercase py-2">Pricing</Link>
+            <Link to="/report" onClick={() => setIsMobileMenuOpen(false)} className="text-[#a1faff] font-headline text-sm tracking-widest uppercase py-2">Features</Link>
+            <Link to="/scanning" onClick={() => setIsMobileMenuOpen(false)} className="text-[#e4e7fb] font-headline text-sm tracking-widest uppercase py-2">Technology</Link>
+            <Link to="/dashboard" onClick={() => setIsMobileMenuOpen(false)} className="text-[#e4e7fb] font-headline text-sm tracking-widest uppercase py-2">Security</Link>
+            <Link to="#" onClick={() => setIsMobileMenuOpen(false)} className="text-[#e4e7fb] font-headline text-sm tracking-widest uppercase py-2">Pricing</Link>
             <div className="h-px w-full bg-outline-variant/30 my-2"></div>
-            <button className="bg-primary text-on-primary font-headline font-bold text-xs uppercase tracking-widest px-6 py-3 rounded-sm active:scale-95 transition-all duration-200 text-center w-full">
+            <button onClick={() => setIsMobileMenuOpen(false)} className="bg-primary text-on-primary font-headline font-bold text-xs uppercase tracking-widest px-6 py-3 rounded-sm active:scale-95 transition-all duration-200 text-center w-full">
               Scan Website
             </button>
           </div>
@@ -72,9 +90,16 @@ const Landing = () => {
             <div className="absolute -inset-1 bg-gradient-to-r from-primary to-secondary rounded-lg blur opacity-20 group-focus-within:opacity-40 transition duration-500"></div>
             <div className="relative flex flex-col sm:flex-row items-center bg-surface-container-low border border-outline-variant/30 p-2 rounded-lg gap-2 sm:gap-0">
               <span className="hidden sm:block material-symbols-outlined pl-4 text-outline-variant">language</span>
-              <input className="w-full bg-transparent border-none text-on-background placeholder:text-outline-variant focus:ring-0 px-4 py-3 font-body text-sm sm:text-base outline-none" placeholder="Enter website URL..." type="text"/>
-              <button className="w-full sm:w-auto bg-primary text-on-primary px-6 sm:px-8 py-3 font-headline font-bold uppercase tracking-widest text-xs sm:text-sm hover:shadow-[0_0_20px_rgba(161,250,255,0.4)] transition-all duration-300 active:scale-95 shrink-0 rounded sm:rounded-none">
-                Scan
+              <input 
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleScan()}
+                className="w-full bg-transparent border-none text-on-background placeholder:text-outline-variant focus:ring-0 px-4 py-3 font-body text-sm sm:text-base outline-none" placeholder="Enter website URL..." type="text"/>
+              <button 
+                onClick={handleScan}
+                disabled={isScanning}
+                className="w-full sm:w-auto bg-primary text-on-primary px-6 sm:px-8 py-3 font-headline font-bold uppercase tracking-widest text-xs sm:text-sm hover:shadow-[0_0_20px_rgba(161,250,255,0.4)] transition-all duration-300 active:scale-95 shrink-0 rounded sm:rounded-none disabled:opacity-50">
+                {isScanning ? 'Initiating...' : 'Scan'}
               </button>
             </div>
           </div>

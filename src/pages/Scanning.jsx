@@ -1,8 +1,43 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import api from '../api';
 
 const Scanning = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const scanId = searchParams.get('scan_id');
+  const [stats, setStats] = useState({ broken_links: 0, ui_issues: 0, form_errors: 0 });
+
+  useEffect(() => {
+    if (!scanId) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const response = await api.get(`/results/${scanId}`);
+        const data = response.data;
+        setStats({
+          broken_links: data.broken_links,
+          ui_issues: data.ui_issues,
+          form_errors: data.form_errors
+        });
+        
+        if (data.status === 'completed') {
+          clearInterval(interval);
+          navigate(`/dashboard?scan_id=${scanId}`);
+        } else if (data.status === 'failed') {
+          clearInterval(interval);
+          alert("Scan failed on backend: \n" + (data.error_details || "Unknown error"));
+          console.error(data.error_details);
+          navigate('/');
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [scanId, navigate]);
 
   return (
     <div className="bg-surface text-on-surface font-body selection:bg-primary/30 min-h-screen relative w-full overflow-x-hidden">
@@ -37,12 +72,12 @@ const Scanning = () => {
         {/* Mobile Dropdown Menu */}
         {isMobileMenuOpen && (
           <div className="md:hidden absolute top-full left-0 w-full bg-surface-container-high border-b border-t border-outline-variant/20 p-4 flex flex-col gap-4 shadow-xl z-50">
-            <Link to="/report" className="text-[#a1faff] font-headline text-sm tracking-widest uppercase py-2">Features</Link>
-            <Link to="/scanning" className="text-[#e4e7fb] font-headline text-sm tracking-widest uppercase py-2">Technology</Link>
-            <Link to="/dashboard" className="text-[#e4e7fb] font-headline text-sm tracking-widest uppercase py-2">Security</Link>
-            <Link to="#" className="text-[#e4e7fb] font-headline text-sm tracking-widest uppercase py-2">Pricing</Link>
+            <Link to="/report" onClick={() => setIsMobileMenuOpen(false)} className="text-[#a1faff] font-headline text-sm tracking-widest uppercase py-2">Features</Link>
+            <Link to="/scanning" onClick={() => setIsMobileMenuOpen(false)} className="text-[#e4e7fb] font-headline text-sm tracking-widest uppercase py-2">Technology</Link>
+            <Link to="/dashboard" onClick={() => setIsMobileMenuOpen(false)} className="text-[#e4e7fb] font-headline text-sm tracking-widest uppercase py-2">Security</Link>
+            <Link to="#" onClick={() => setIsMobileMenuOpen(false)} className="text-[#e4e7fb] font-headline text-sm tracking-widest uppercase py-2">Pricing</Link>
             <div className="h-px w-full bg-outline-variant/30 my-2"></div>
-            <button className="bg-primary text-on-primary font-headline font-bold text-xs uppercase tracking-widest px-6 py-3 rounded-sm active:scale-95 transition-all duration-200 text-center w-full">
+            <button onClick={() => setIsMobileMenuOpen(false)} className="bg-primary text-on-primary font-headline font-bold text-xs uppercase tracking-widest px-6 py-3 rounded-sm active:scale-95 transition-all duration-200 text-center w-full">
               Scan Website
             </button>
           </div>
@@ -129,16 +164,16 @@ const Scanning = () => {
           {/* Stats/Metrics (Asymmetric Layout) */}
           <div className="w-full lg:col-span-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-4 md:gap-6">
             <div className="bg-surface-container-high p-3 md:p-4 border-l-2 border-primary">
-              <p className="font-label text-[8px] md:text-[10px] tracking-[0.2em] text-primary uppercase mb-1 truncate">Threads Active</p>
-              <p className="font-headline text-lg sm:text-xl md:text-2xl font-bold text-on-surface">128</p>
+              <p className="font-label text-[8px] md:text-[10px] tracking-[0.2em] text-primary uppercase mb-1 truncate">Links Checked</p>
+              <p className="font-headline text-lg sm:text-xl md:text-2xl font-bold text-on-surface">Live</p>
             </div>
             <div className="bg-surface-container-high p-3 md:p-4 border-l-2 border-secondary">
-              <p className="font-label text-[8px] md:text-[10px] tracking-[0.2em] text-secondary uppercase mb-1 truncate">Spectral Depth</p>
-              <p className="font-headline text-lg sm:text-xl md:text-2xl font-bold text-on-surface">4.2 TB/s</p>
+              <p className="font-label text-[8px] md:text-[10px] tracking-[0.2em] text-secondary uppercase mb-1 truncate">UI Issues</p>
+              <p className="font-headline text-lg sm:text-xl md:text-2xl font-bold text-on-surface">{stats.ui_issues}</p>
             </div>
             <div className="col-span-2 sm:col-span-1 lg:col-span-1 bg-surface-container-high p-3 md:p-4 border-l-2 border-error">
               <p className="font-label text-[8px] md:text-[10px] tracking-[0.2em] text-error uppercase mb-1 truncate">Errors Found</p>
-              <p className="font-headline text-lg sm:text-xl md:text-2xl font-bold text-on-surface">04</p>
+              <p className="font-headline text-lg sm:text-xl md:text-2xl font-bold text-on-surface">{stats.broken_links + stats.form_errors}</p>
             </div>
           </div>
         </div>
