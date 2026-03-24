@@ -1,0 +1,76 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  darkMode: "class",
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        "on-tertiary": "#4a0004",
+        "inverse-surface": "#faf8ff",
+        "tertiary-fixed": "#ff9289",
+        "on-error": "#490006",
+        "surface-container-low": "#0d1321",
+        "on-primary": "#006165",
+        "on-tertiary-fixed-variant": "#7a000b",
+        "secondary-container": "#441cc8",
+        "background": "#090e1b",
+        "on-surface-variant": "#a6aabc",
+        "outline": "#707586",
+        "error-container": "#9f0519",
+        "primary-fixed-dim": "#00e5ee",
+        "surface-container-high": "#191f31",
+        "surface": "#090e1b",
+        "inverse-primary": "#006a6e",
+        "tertiary-fixed-dim": "#ff7b71",
+        "outline-variant": "#434857",
+        "primary-dim": "#00e5ee",
+        "on-background": "#e4e7fb",
+        "error": "#ff716c",
+        "primary-fixed": "#00f4fe",
+        "tertiary-container": "#f53335",
+        "surface-tint": "#a1faff",
+        "on-surface": "#e4e7fb",
+        "secondary-fixed": "#d4cbff",
+        "on-tertiary-container": "#000000",
+        "surface-bright": "#242c40",
+        "on-secondary-container": "#d3caff",
+        "surface-container-highest": "#1e2538",
+        "secondary-dim": "#7459f7",
+        "surface-dim": "#090e1b",
+        "on-secondary-fixed-variant": "#4f2dd2",
+        "on-primary-fixed": "#004346",
+        "error-dim": "#d7383b",
+        "secondary": "#9f8eff",
+        "surface-container": "#131929",
+        "primary": "#a1faff",
+        "inverse-on-surface": "#505564",
+        "tertiary-dim": "#e2242a",
+        "on-secondary-fixed": "#3200a7",
+        "on-primary-container": "#00575b",
+        "secondary-fixed-dim": "#c6bbff",
+        "on-error-container": "#ffa8a3",
+        "surface-variant": "#1e2538",
+        "tertiary": "#ff7168",
+        "on-primary-fixed-variant": "#006266",
+        "primary-container": "#00f4fe"
+      },
+      fontFamily: {
+        "headline": ["Space Grotesk", "sans-serif"],
+        "body": ["Inter", "sans-serif"],
+        "label": ["Space Grotesk", "sans-serif"]
+      },
+      borderRadius: {
+        "DEFAULT": "0.125rem",
+        "lg": "0.25rem",
+        "xl": "0.5rem",
+        "full": "0.75rem"
+      },
+    },
+  },
+  plugins: [
+    require('@tailwindcss/container-queries')
+  ],
+}
