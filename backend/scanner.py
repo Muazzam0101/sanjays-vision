@@ -46,6 +46,13 @@ async def _run_scan_async(scan_id: str, start_url: str, scans_db: dict):
     suggestions = set()
     js_errors_detected = []
     
+    screenshot_counter = 0
+
+    def get_ss_path(issue_type: str) -> str:
+        nonlocal screenshot_counter
+        screenshot_counter += 1
+        return f"screenshots/{scan_id}_{issue_type}_{screenshot_counter}.png"
+    
     def on_console(msg):
         if msg.type == "error":
             js_errors_detected.append(msg.text)
@@ -93,7 +100,7 @@ async def _run_scan_async(scan_id: str, start_url: str, scans_db: dict):
                     
                     # Connection sanity
                     if response and response.status >= 400:
-                        ss_path = f"screenshots/{scan_id}_{uuid.uuid4().hex[:8]}.png"
+                        ss_path = get_ss_path("broken_link")
                         await page.screenshot(path=ss_path)
                         issues.append({
                             "page": current_url, "type": "broken_link", "severity": classify_severity("broken_link"),
@@ -127,12 +134,22 @@ async def _run_scan_async(scan_id: str, start_url: str, scans_db: dict):
                         src = await img.get_attribute("src")
                         alt = await img.get_attribute("alt")
                         if not src or src.strip() == "":
-                            ss_path = f"screenshots/{scan_id}_{uuid.uuid4().hex[:8]}.png"
+                            try:
+                                await img.evaluate("(el) => el.style.border = '5px solid red'")
+                            except:
+                                pass
+                            ss_path = get_ss_path("ui_issue")
                             await page.screenshot(path=ss_path)
                             issues.append({"page": current_url, "type": "ui_issue", "severity": classify_severity("ui_issue"), "description": "Image element lacks valid 'src' property.", "screenshot": ss_path})
                             scans_db[scan_id]["ui_issues"] += 1
                         if alt is None or alt.strip() == "":
-                            issues.append({"page": current_url, "type": "accessibility_issue", "severity": classify_severity("accessibility_issue"), "description": "Image is missing 'alt' label property.", "screenshot": None})
+                            try:
+                                await img.evaluate("(el) => el.style.border = '5px solid red'")
+                            except:
+                                pass
+                            ss_path = get_ss_path("accessibility_issue")
+                            await page.screenshot(path=ss_path)
+                            issues.append({"page": current_url, "type": "accessibility_issue", "severity": classify_severity("accessibility_issue"), "description": "Image is missing 'alt' label property.", "screenshot": ss_path})
                             suggestions.add("Add alt tags to all image assets for 100% ADA compliance.")
                             
                     # UX Click Target Analysis
@@ -149,7 +166,13 @@ async def _run_scan_async(scan_id: str, start_url: str, scans_db: dict):
                             # 2. Check Bounding Math for Mobile usability scaling
                             box = await el.bounding_box()
                             if box and box["width"] > 0 and (box["width"] < 30 or box["height"] < 30):
-                                issues.append({"page": current_url, "type": "ux_issue", "severity": classify_severity("ux_issue"), "description": f"Poor UX - Click target is too small for mobile touch standards ({int(box['width'])}x{int(box['height'])})", "screenshot": None})
+                                try:
+                                    await el.evaluate("(el) => el.style.border = '5px solid red'")
+                                except:
+                                    pass
+                                ss_path = get_ss_path("ux_issue")
+                                await page.screenshot(path=ss_path)
+                                issues.append({"page": current_url, "type": "ux_issue", "severity": classify_severity("ux_issue"), "description": f"Poor UX - Click target is too small for mobile touch standards ({int(box['width'])}x{int(box['height'])})", "screenshot": ss_path})
                                 scans_db[scan_id]["ui_issues"] += 1
                         except Exception:
                             pass
@@ -178,7 +201,7 @@ async def _run_scan_async(scan_id: str, start_url: str, scans_db: dict):
                                 
                                 is_valid = await page.evaluate("(el) => el.checkValidity()", inp)
                                 if is_valid:
-                                    ss_path = f"screenshots/{scan_id}_{uuid.uuid4().hex[:8]}.png"
+                                    ss_path = get_ss_path("form_error")
                                     await inp.evaluate("(el) => el.style.border = '5px solid red'")
                                     await page.screenshot(path=ss_path)
                                     
@@ -200,7 +223,12 @@ async def _run_scan_async(scan_id: str, start_url: str, scans_db: dict):
                     
             # Global Javascript Execution Evaluation
             for err in js_errors_detected[:3]:
-                issues.append({"page": "Global JS Runtime", "type": "js_error", "severity": classify_severity("js_error"), "description": f"JavaScript Error: {err[:150]}", "screenshot": None})
+                ss_path = get_ss_path("js_error")
+                try:
+                    await page.screenshot(path=ss_path)
+                except:
+                    ss_path = None
+                issues.append({"page": "Global JS Runtime", "type": "js_error", "severity": classify_severity("js_error"), "description": f"JavaScript Error: {err[:150]}", "screenshot": ss_path})
                 scans_db[scan_id]["js_errors"] += 1
                 suggestions.add("Resolve all console runtime warnings prior to React hydration mapping.")
 
