@@ -1,269 +1,327 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import api from '../api';
 
 const Scanning = () => {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const scanId = searchParams.get('scan_id');
-  const [stats, setStats] = useState({ broken_links: 0, ui_issues: 0, form_errors: 0 });
+    const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
+    const scanId = searchParams.get('scan_id');
 
-  useEffect(() => {
-    if (!scanId) return;
+    const [logs, setLogs] = useState([]);
+    const [browserUrl, setBrowserUrl] = useState("Initializing Oracle Runtime...");
+    const [browserImage, setBrowserImage] = useState(null);
+    const [progress, setProgress] = useState(0);
+    const [metrics, setMetrics] = useState({ broken_links: 0, ui_issues: 0, form_errors: 0, js_errors: 0 });
+    const logContainerRef = useRef(null);
 
-    const interval = setInterval(async () => {
-      try {
-        const response = await api.get(`/results/${scanId}`);
-        const data = response.data;
-        setStats({
-          broken_links: data.broken_links,
-          ui_issues: data.ui_issues,
-          form_errors: data.form_errors
-        });
-        
-        if (data.status === 'completed') {
-          clearInterval(interval);
-          navigate(`/dashboard?scan_id=${scanId}`);
-        } else if (data.status === 'failed') {
-          clearInterval(interval);
-          alert("Scan failed on backend: \n" + (data.error_details || "Unknown error"));
-          console.error(data.error_details);
-          navigate('/');
+    useEffect(() => {
+        if (!scanId) return;
+
+        const connectWebSocket = () => {
+            const wsUrl = `ws://localhost:8000/scan-stream/${scanId}`;
+            const ws = new WebSocket(wsUrl);
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'log') {
+                    setLogs(prev => {
+                        const newLogs = [...prev, { time: new Date().toLocaleTimeString('en-US', { hour12: false }), msg: data.message, type: 'info' }];
+                        if (newLogs.length > 50) return newLogs.slice(newLogs.length - 50);
+                        return newLogs;
+                    });
+                } else if (data.type === 'navigation') {
+                    setBrowserUrl(data.url);
+                } else if (data.type === 'screenshot') {
+                    setBrowserImage(data.image);
+                } else if (data.type === 'progress') {
+                    setProgress(data.value);
+                } else if (data.type === 'metrics') {
+                    setMetrics(data.data);
+                } else if (data.type === 'issue_detected') {
+                    setLogs(prev => {
+                        const newLogs = [...prev, { time: new Date().toLocaleTimeString('en-US', { hour12: false }), msg: `[ALERT] ${data.severity.toUpperCase()} Issue Detected: ${data.message}`, type: 'alert' }];
+                        if (newLogs.length > 50) return newLogs.slice(newLogs.length - 50);
+                        return newLogs;
+                    });
+                } else if (data.type === 'finished') {
+                    ws.close();
+                    setTimeout(() => navigate(`/dashboard?scan_id=${scanId}`), 1000);
+                } else if (data.type === 'failed') {
+                    ws.close();
+                    alert("Scan failed: " + data.message);
+                    navigate('/');
+                }
+            };
+
+            return ws;
+        };
+
+        const ws = connectWebSocket();
+
+        // Fallback polling for safe navigation
+        const interval = setInterval(async () => {
+            try {
+                const response = await api.get(`/results/${scanId}`);
+                if (response.data && response.data.status === 'completed') {
+                    navigate(`/dashboard?scan_id=${scanId}`);
+                }
+            } catch (e) {
+                // Background error suppression
+            }
+        }, 3000);
+
+        return () => {
+            ws.close();
+            clearInterval(interval);
+        };
+    }, [scanId, navigate]);
+
+    useEffect(() => {
+        if (logContainerRef.current) {
+            logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
         }
-      } catch (err) {
-        console.error(err);
-      }
-    }, 2000);
+    }, [logs]);
 
-    return () => clearInterval(interval);
-  }, [scanId, navigate]);
+    return (
+        <div className="bg-surface overflow-hidden h-screen flex flex-col font-body text-on-surface">
+            <style>{`
+                .font-headline { font-family: 'Space Grotesk', sans-serif; }
+                .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+                
+                .grid-bg {
+                    background-image: radial-gradient(rgba(67, 72, 87, 0.15) 1px, transparent 1px);
+                    background-size: 32px 32px;
+                }
 
-  return (
-    <div className="bg-surface text-on-surface font-body selection:bg-primary/30 min-h-screen relative w-full overflow-x-hidden">
-      {/* Grid Background & Decor */}
-      <div className="fixed inset-0 bg-grid-pattern pointer-events-none z-0"></div>
-      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="scan-line" style={{ top: '20%', opacity: 0.05 }}></div>
-        <div className="scan-line" style={{ top: '60%', opacity: 0.03 }}></div>
-      </div>
+                .scan-line {
+                    width: 100%;
+                    height: 2px;
+                    background: linear-gradient(90deg, transparent, #a1faff, transparent);
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    animation: scan 4s linear infinite;
+                    opacity: 0.1;
+                    z-index: 10;
+                }
 
-      {/* TopNavBar */}
-      <header className="fixed top-0 w-full z-50 bg-surface/40 backdrop-blur-xl shadow-[0px_20px_40px_rgba(161,250,255,0.08)]">
-        <nav className="flex justify-between items-center w-full px-4 md:px-8 py-4 max-w-7xl mx-auto">
-          <Link to="/" className="text-lg md:text-xl font-bold tracking-tighter text-[#a1faff] uppercase font-headline">
-            Sanjay’s Vision
-          </Link>
-          <div className="hidden md:flex items-center gap-6 lg:gap-8">
-            <Link to="/report" className="text-[#e4e7fb] opacity-70 hover:text-[#a1faff] hover:opacity-100 transition-all duration-300 font-label text-[10px] lg:text-[12px] tracking-[0.1em] uppercase">Features</Link>
-            <Link to="/scanning" className="text-[#e4e7fb] opacity-70 hover:text-[#a1faff] hover:opacity-100 transition-all duration-300 font-label text-[10px] lg:text-[12px] tracking-[0.1em] uppercase">Technology</Link>
-            <Link to="/dashboard" className="text-[#e4e7fb] opacity-70 hover:text-[#a1faff] hover:opacity-100 transition-all duration-300 font-label text-[10px] lg:text-[12px] tracking-[0.1em] uppercase">Security</Link>
-            <Link to="#" className="text-[#e4e7fb] opacity-70 hover:text-[#a1faff] hover:opacity-100 transition-all duration-300 font-label text-[10px] lg:text-[12px] tracking-[0.1em] uppercase">Pricing</Link>
-          </div>
-          <div className="flex items-center gap-3 lg:gap-4">
-            <button className="hidden sm:block px-4 lg:px-6 py-2 bg-primary text-on-primary font-label text-[10px] lg:text-[12px] tracking-[0.1em] uppercase font-bold hover:shadow-[0_0_15px_rgba(161,250,255,0.4)] active:scale-95 transition-all duration-200">
-              Scan Website
-            </button>
-            <span className="hidden sm:block material-symbols-outlined text-[#a1faff] cursor-pointer">account_circle</span>
-            <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="md:hidden material-symbols-outlined text-primary p-2">menu</button>
-          </div>
-        </nav>
+                @keyframes scan {
+                    0% { top: 0; }
+                    100% { top: 100%; }
+                }
 
-        {/* Mobile Dropdown Menu */}
-        {isMobileMenuOpen && (
-          <div className="md:hidden absolute top-full left-0 w-full bg-surface-container-high border-b border-t border-outline-variant/20 p-4 flex flex-col gap-4 shadow-xl z-50">
-            <Link to="/report" onClick={() => setIsMobileMenuOpen(false)} className="text-[#a1faff] font-headline text-sm tracking-widest uppercase py-2">Features</Link>
-            <Link to="/scanning" onClick={() => setIsMobileMenuOpen(false)} className="text-[#e4e7fb] font-headline text-sm tracking-widest uppercase py-2">Technology</Link>
-            <Link to="/dashboard" onClick={() => setIsMobileMenuOpen(false)} className="text-[#e4e7fb] font-headline text-sm tracking-widest uppercase py-2">Security</Link>
-            <Link to="#" onClick={() => setIsMobileMenuOpen(false)} className="text-[#e4e7fb] font-headline text-sm tracking-widest uppercase py-2">Pricing</Link>
-            <div className="h-px w-full bg-outline-variant/30 my-2"></div>
-            <button onClick={() => setIsMobileMenuOpen(false)} className="bg-primary text-on-primary font-headline font-bold text-xs uppercase tracking-widest px-6 py-3 rounded-sm active:scale-95 transition-all duration-200 text-center w-full">
-              Scan Website
-            </button>
-          </div>
-        )}
-      </header>
+                .typing-cursor {
+                    border-right: 2px solid #a1faff;
+                    animation: blink 1s step-end infinite;
+                }
 
-      <main className="relative z-10 pt-24 md:pt-32 pb-16 md:pb-20 px-4 md:px-6 max-w-6xl mx-auto w-full">
-        {/* Title Section */}
-        <div className="text-center mb-10 md:mb-16">
-          <h1 className="font-headline font-bold text-3xl sm:text-4xl md:text-5xl lg:text-6xl tracking-[-0.02em] text-[#a1faff] drop-shadow-[0_0_12px_rgba(161,250,255,0.6)] mb-3 md:mb-4 px-2">
-            SCANNING IN PROGRESS...
-          </h1>
-          <p className="text-on-surface-variant font-body text-base sm:text-lg max-w-2xl mx-auto px-4">
-            Detecting UI breaks and functional errors using spectral vision analysis.
-          </p>
-        </div>
+                @keyframes blink {
+                    from, to { border-color: transparent }
+                    50% { border-color: #a1faff }
+                }
 
-        <div className="flex flex-col-reverse lg:grid lg:grid-cols-12 gap-8 lg:gap-12 items-center mb-12 md:mb-16">
-          {/* Step Indicators */}
-          <div className="w-full lg:col-span-3 space-y-4 md:space-y-8 flex flex-col sm:grid sm:grid-cols-2 lg:flex lg:flex-col gap-4 sm:gap-6 lg:gap-0">
-            <div className="flex items-center gap-3 md:gap-4 group">
-              <div className="w-8 h-8 shrink-0 rounded-sm bg-primary/20 flex items-center justify-center border border-primary/30">
-                <span className="material-symbols-outlined text-primary text-sm" style={{fontVariationSettings: "'FILL' 1"}}>check_circle</span>
-              </div>
-              <div>
-                <p className="font-label text-[8px] md:text-[10px] tracking-[0.2em] text-primary/60 uppercase">Step 01</p>
-                <p className="font-headline font-medium text-primary text-xs md:text-sm uppercase">Crawling Pages</p>
-              </div>
-            </div>
+                .glow-cyan { text-shadow: 0 0 10px rgba(161, 250, 255, 0.6); }
+                .glass-panel { backdrop-filter: blur(20px); background: rgba(30, 37, 56, 0.4); }
+            `}</style>
             
-            <div className="flex items-center gap-3 md:gap-4 group">
-              <div className="w-8 h-8 shrink-0 rounded-sm bg-primary-container/20 flex items-center justify-center border border-primary-container animate-pulse">
-                <span className="material-symbols-outlined text-primary-fixed text-sm animate-spin">progress_activity</span>
-              </div>
-              <div>
-                <p className="font-label text-[8px] md:text-[10px] tracking-[0.2em] text-primary-fixed uppercase">Step 02</p>
-                <p className="font-headline font-medium text-on-surface text-xs md:text-sm uppercase">Checking Links</p>
-              </div>
-            </div>
+            <nav className="flex justify-between items-center w-full px-6 h-16 sticky top-0 z-50 bg-[#090e1b]/80 backdrop-blur-xl border-b border-[#434857]/15 shadow-[0_20px_40px_rgba(161,250,255,0.08)]">
+                <div className="flex items-center gap-8">
+                    <span className="text-xl font-bold tracking-tighter text-[#a1faff] drop-shadow-[0_0_8px_rgba(161,250,255,0.4)] font-headline">CYBER_ORACLE</span>
+                    <div className="hidden md:flex gap-6 items-center">
+                        <Link className="font-headline tracking-[-0.02em] uppercase text-sm text-[#e4e7fb]/60 hover:text-[#e4e7fb] transition-colors" to="#">THREATS</Link>
+                        <Link className="font-headline tracking-[-0.02em] uppercase text-sm text-[#e4e7fb]/60 hover:text-[#e4e7fb] transition-colors" to="#">NETWORK</Link>
+                        <Link className="font-headline tracking-[-0.02em] uppercase text-sm text-[#00f4fe] border-b-2 border-[#00f4fe] pb-1" to="#">NODES</Link>
+                        <Link className="font-headline tracking-[-0.02em] uppercase text-sm text-[#e4e7fb]/60 hover:text-[#e4e7fb] transition-colors" to="#">VAULT</Link>
+                    </div>
+                </div>
+                <div className="flex items-center gap-4">
+                    <button className="p-2 hover:bg-[#1e2538]/40 transition-all duration-300 rounded-lg">
+                        <span className="material-symbols-outlined text-[#a1faff]">notifications_active</span>
+                    </button>
+                    <button className="p-2 hover:bg-[#1e2538]/40 transition-all duration-300 rounded-lg">
+                        <span className="material-symbols-outlined text-[#a1faff]">settings</span>
+                    </button>
+                    <div className="w-8 h-8 rounded-full border border-primary overflow-hidden">
+                        <img alt="Operator Profile" className="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBEUJEVw_sVM-Qf2-nkVXbzssfKf3ROXhNzwTA4ef39HC6Shjvljtxqc92dw0yqY-axC-smidgC45lTKMkGvgKRoIfpR97pwOhleOPN76eMCR7FlGxUYBdw5e-01KPf4rExbGtt6h_DBOgpZTODh_0Kkp75B8TKB4nDyvS_ui-zgiqbJLuAqQ8INqdsOGNFfEs3lL-Y-4ZMQk0Rg4ipvlAnbvgkAQnaepuojD4xNdnhx5Px854QuEkTDY6x_Mpt38jYEJsvhP_Pwajj" />
+                    </div>
+                </div>
+            </nav>
 
-            <div className="flex items-center gap-3 md:gap-4 opacity-40">
-              <div className="w-8 h-8 shrink-0 rounded-sm bg-outline-variant/20 flex items-center justify-center border border-outline-variant/30">
-                <span className="material-symbols-outlined text-on-surface-variant text-sm">radio_button_unchecked</span>
-              </div>
-              <div>
-                <p className="font-label text-[8px] md:text-[10px] tracking-[0.2em] uppercase">Step 03</p>
-                <p className="font-headline font-medium text-on-surface-variant text-xs md:text-sm uppercase">Analyzing UI</p>
-              </div>
-            </div>
+            <main className="flex-1 flex overflow-hidden grid-bg relative">
+                <div className="scan-line"></div>
+                
+                <aside className="fixed left-0 top-0 h-full flex flex-col pt-20 bg-[#0d1321] w-64 border-r border-[#434857]/15 z-40 hidden lg:flex">
+                    <div className="px-6 mb-8">
+                        <h2 className="text-[#a1faff] font-black font-headline text-lg">ORACLE_OS</h2>
+                        <p className="font-headline font-medium text-[10px] tracking-widest text-[#e4e7fb]/40">v4.0.2-STABLE</p>
+                    </div>
+                    <nav className="flex flex-col gap-4">
+                        <Link className="flex items-center gap-4 text-[#e4e7fb]/40 py-3 px-6 hover:bg-[#1e2538]/20 hover:text-[#00f4fe] transition-all font-headline text-xs tracking-widest" to="/">
+                            <span className="material-symbols-outlined">grid_view</span> DASHBOARD
+                        </Link>
+                        <Link className="flex items-center gap-4 bg-[#1e2538]/40 border-l-4 border-[#a1faff] text-[#a1faff] py-3 px-6 font-headline text-xs tracking-widest" to="#">
+                            <span className="material-symbols-outlined" style={{fontVariationSettings: "'FILL' 1"}}>radar</span> SCANNER
+                        </Link>
+                        <Link className="flex items-center gap-4 text-[#e4e7fb]/40 py-3 px-6 hover:bg-[#1e2538]/20 hover:text-[#00f4fe] transition-all font-headline text-xs tracking-widest" to="#">
+                            <span className="material-symbols-outlined">terminal</span> LOGS
+                        </Link>
+                        <Link className="flex items-center gap-4 text-[#e4e7fb]/40 py-3 px-6 hover:bg-[#1e2538]/20 hover:text-[#00f4fe] transition-all font-headline text-xs tracking-widest" to="#">
+                            <span className="material-symbols-outlined">sensors</span> SENSORS
+                        </Link>
+                        <Link className="flex items-center gap-4 text-[#e4e7fb]/40 py-3 px-6 hover:bg-[#1e2538]/20 hover:text-[#00f4fe] transition-all font-headline text-xs tracking-widest" to="#">
+                            <span className="material-symbols-outlined">settings_input_component</span> CONFIG
+                        </Link>
+                    </nav>
+                    <div className="mt-auto p-6">
+                        <button className="w-full bg-primary py-3 rounded-sm text-on-primary font-headline font-bold text-xs tracking-widest shadow-[0_0_20px_rgba(161,250,255,0.2)] active:scale-95 transition-transform">
+                            INITIATE_SCAN
+                        </button>
+                    </div>
+                </aside>
 
-            <div className="flex items-center gap-3 md:gap-4 opacity-40">
-              <div className="w-8 h-8 shrink-0 rounded-sm bg-outline-variant/20 flex items-center justify-center border border-outline-variant/30">
-                <span className="material-symbols-outlined text-on-surface-variant text-sm">radio_button_unchecked</span>
-              </div>
-              <div>
-                <p className="font-label text-[8px] md:text-[10px] tracking-[0.2em] uppercase">Step 04</p>
-                <p className="font-headline font-medium text-on-surface-variant text-xs md:text-sm uppercase">Testing Forms</p>
-              </div>
+                <div className="flex-1 lg:ml-64 flex flex-col md:flex-row p-6 gap-6 z-10">
+                    {/* LEFT SIDE: Browser Preview */}
+                    <div className="w-full md:w-[60%] flex flex-col">
+                        <div className="flex-1 glass-panel border border-outline-variant/15 rounded-xl flex flex-col shadow-2xl overflow-hidden relative">
+                            <div className="h-12 bg-surface-container-high border-b border-outline-variant/15 flex items-center px-4 gap-4">
+                                <div className="flex gap-1.5">
+                                    <div className="w-3 h-3 rounded-full bg-error-dim"></div>
+                                    <div className="w-3 h-3 rounded-full bg-tertiary"></div>
+                                    <div className="w-3 h-3 rounded-full bg-primary-container"></div>
+                                </div>
+                                <div className="flex-1 bg-surface-container-low h-8 rounded flex items-center px-4 border border-outline-variant/10 overflow-hidden">
+                                    <span className="material-symbols-outlined text-xs text-outline mr-2 shrink-0">lock</span>
+                                    <span className="text-xs font-mono text-primary/80 typing-cursor truncate">{browserUrl}</span>
+                                </div>
+                                <div className="flex gap-2">
+                                    <span className="material-symbols-outlined text-outline text-sm">refresh</span>
+                                    <span className="material-symbols-outlined text-outline text-sm">more_vert</span>
+                                </div>
+                            </div>
+                            
+                            {/* Live Browser Image View */}
+                            <div className="flex-1 relative bg-[#090e1b] flex items-center justify-center p-2">
+                                {browserImage ? (
+                                    <img src={browserImage} alt="Live view" className="max-w-full max-h-full object-contain rounded drop-shadow-lg" />
+                                ) : (
+                                    <div className="flex flex-col items-center gap-4 text-primary/40">
+                                        <span className="material-symbols-outlined text-6xl animate-pulse">public</span>
+                                        <p className="font-headline tracking-widest text-xs uppercase">Awaiting Visual Stream...</p>
+                                    </div>
+                                )}
+                                
+                                <div className="absolute top-4 left-4 flex items-center gap-2">
+                                    <div className="bg-primary/20 text-primary text-[10px] font-bold font-headline px-2 py-1 border border-primary/30 rounded flex items-center gap-1.5 backdrop-blur-md">
+                                        <span className="w-2 h-2 rounded-full bg-primary animate-ping"></span>
+                                        LIVE SCAN MODE
+                                    </div>
+                                    <div className="bg-secondary/20 text-secondary text-[10px] font-bold font-headline px-2 py-1 border border-secondary/30 rounded flex items-center gap-1.5 backdrop-blur-md shadow-[0_0_15px_rgba(159,142,255,0.3)]">
+                                        <span className="material-symbols-outlined text-xs" style={{fontVariationSettings: "'FILL' 1"}}>bolt</span>
+                                        AI AGENT ACTIVE
+                                    </div>
+                                </div>
+                                
+                                {/* Simulated Fake Cursor */}
+                                {browserImage && progress < 100 && (
+                                    <div className="absolute bottom-1/4 right-1/3 pointer-events-none animate-bounce">
+                                        <span className="material-symbols-outlined text-primary text-3xl opacity-80 drop-shadow-[0_0_8px_rgba(161,250,255,0.8)]">near_me</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {/* RIGHT SIDE: Status & Metrics */}
+                    <div className="w-full md:w-[40%] flex flex-col gap-6">
+                        <div className="surface-container-high glass-panel p-5 rounded-xl border border-outline-variant/15 relative overflow-hidden">
+                            <div className="flex justify-between items-start mb-4">
+                                <div className="max-w-[70%]">
+                                    <p className="text-[10px] font-headline tracking-widest text-outline uppercase mb-1">Target</p>
+                                    <h3 className="text-primary font-headline font-bold text-sm lg:text-md glow-cyan truncate">{browserUrl}</h3>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[10px] font-headline tracking-widest text-outline uppercase mb-1">Status</p>
+                                    <span className="text-primary-container font-headline font-black text-xs sm:text-sm">{progress >= 100 ? "COMPLETED" : "ANALYZING"}</span>
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <div className="flex justify-between text-[10px] font-headline text-on-surface-variant">
+                                    <span>PROGRESS</span>
+                                    <span>{progress}%</span>
+                                </div>
+                                <div className="w-full h-1 bg-surface-container-lowest overflow-hidden">
+                                    <div className="h-full bg-primary-container shadow-[0_0_8px_#00f4fe] transition-all duration-500 ease-out" style={{width: `${progress}%`}}></div>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 mt-6">
+                                <div className="flex flex-col gap-2">
+                                    <div className={`h-1 ${progress > 0 ? 'bg-primary' : 'bg-outline-variant/30'}`}></div>
+                                    <span className={`text-[9px] font-headline ${progress > 0 ? 'text-primary' : 'text-outline'}`}>CRAWLING</span>
+                                </div>
+                                <div className="flex flex-col gap-2">
+                                    <div className={`h-1 ${progress >= 30 ? 'bg-primary relative overflow-hidden' : 'bg-outline-variant/30'}`}>
+                                        {progress >= 30 && progress < 90 && <div className="absolute inset-0 bg-white/40 animate-pulse"></div>}
+                                    </div>
+                                    <span className={`text-[9px] font-headline ${progress >= 30 ? 'text-primary-container glow-cyan' : 'text-outline'}`}>TESTING</span>
+                                </div>
+                                <div className="flex flex-col gap-2">
+                                    <div className={`h-1 ${progress >= 90 ? 'bg-primary' : 'bg-outline-variant/30'}`}></div>
+                                    <span className={`text-[9px] font-headline ${progress >= 90 ? 'text-primary' : 'text-outline'}`}>REPORTING</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="surface-container-high p-4 rounded-xl border border-outline-variant/10">
+                                <p className="text-[9px] font-headline tracking-widest text-outline uppercase">Broken Links</p>
+                                <p className="text-2xl font-headline font-bold text-on-surface">{metrics.broken_links < 10 ? '0'+metrics.broken_links : metrics.broken_links}</p>
+                            </div>
+                            <div className="surface-container-high p-4 rounded-xl border border-outline-variant/10">
+                                <p className="text-[9px] font-headline tracking-widest text-outline uppercase">UI Issues</p>
+                                <p className="text-2xl font-headline font-bold text-error glow-cyan">{metrics.ui_issues < 10 ? '0'+metrics.ui_issues : metrics.ui_issues}</p>
+                            </div>
+                            <div className="surface-container-high p-4 rounded-xl border border-outline-variant/10">
+                                <p className="text-[9px] font-headline tracking-widest text-outline uppercase">Form Errors</p>
+                                <p className="text-2xl font-headline font-bold text-tertiary">{metrics.form_errors < 10 ? '0'+metrics.form_errors : metrics.form_errors}</p>
+                            </div>
+                            <div className="surface-container-high p-4 rounded-xl border border-outline-variant/10">
+                                <p className="text-[9px] font-headline tracking-widest text-outline uppercase">JS Errors</p>
+                                <p className="text-2xl font-headline font-bold text-primary">{metrics.js_errors < 10 ? '0'+metrics.js_errors : metrics.js_errors}</p>
+                            </div>
+                        </div>
+                        
+                        <div className="flex-1 surface-container-low border border-outline-variant/15 rounded-xl flex flex-col overflow-hidden shadow-inner max-h-64 md:max-h-full">
+                            <div className="h-8 bg-surface-container-high px-4 flex items-center justify-between border-b border-outline-variant/10">
+                                <span className="text-[10px] font-headline text-outline tracking-widest">LIVE_ACTIVITY_LOG</span>
+                                <div className="flex gap-1">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-outline/40"></div>
+                                    <div className="w-1.5 h-1.5 rounded-full bg-outline/40"></div>
+                                </div>
+                            </div>
+                            <div ref={logContainerRef} className="flex-1 p-4 font-mono text-[11px] leading-relaxed overflow-y-auto space-y-1 custom-scrollbar">
+                                {logs.map((log, index) => (
+                                    <p key={index} className={log.type === 'alert' ? 'text-error font-bold' : 'text-primary/60'}>
+                                        <span className="text-outline">[{log.time}]</span> {log.msg}
+                                    </p>
+                                ))}
+                                {progress < 100 && (
+                                    <div className="inline-block w-2 h-4 bg-primary-container animate-pulse align-middle"></div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+            
+            <div className="fixed inset-0 pointer-events-none opacity-20">
+                <div className="absolute top-1/4 left-1/4 w-1 h-1 bg-primary rounded-full blur-sm"></div>
+                <div className="absolute top-3/4 left-1/2 w-1 h-1 bg-secondary rounded-full blur-sm"></div>
+                <div className="absolute top-1/2 right-1/4 w-1.5 h-1.5 bg-primary-container rounded-full blur-sm"></div>
+                <div className="absolute bottom-1/4 right-1/3 w-1 h-1 bg-tertiary rounded-full blur-sm"></div>
             </div>
-          </div>
-
-          {/* Main Visual: Concentric Rings Loader */}
-          <div className="w-full lg:col-span-6 flex justify-center py-6 md:py-12">
-            <div className="relative w-48 h-48 sm:w-64 sm:h-64 md:w-80 md:h-80 flex items-center justify-center overflow-hidden md:overflow-visible">
-              {/* Outer Ring (Clockwise) */}
-              <div className="absolute inset-0 md:inset-[-10px] border-[2px] md:border-[3px] border-dashed border-primary/20 rounded-full animate-[spin_10s_linear_infinite]"></div>
-              {/* Middle Ring (Counter) */}
-              <div className="absolute inset-4 md:inset-4 border-[2px] border-primary-container/40 rounded-full animate-[spin_6s_linear_infinite_reverse] border-t-primary-fixed"></div>
-              {/* Inner Ring (Clockwise) */}
-              <div className="absolute inset-8 md:inset-10 border-[3px] md:border-[5px] border-secondary/10 rounded-full animate-[spin_4s_linear_infinite] border-r-secondary"></div>
-              
-              {/* Pulsing Glow Core */}
-              <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-32 md:h-32 bg-primary/10 rounded-full flex items-center justify-center relative shadow-[0_0_80px_rgba(161,250,255,0.2)]">
-                <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping"></div>
-                <span className="material-symbols-outlined text-primary text-3xl sm:text-4xl md:text-5xl z-10" style={{fontVariationSettings: "'FILL' 1"}}>art_track</span>
-              </div>
-              
-              {/* Geometric Decors */}
-              <div className="absolute top-[-10px] md:top-0 left-1/2 -translate-x-1/2 w-1 h-6 md:h-8 bg-primary-fixed shadow-[0_0_10px_#00f4fe]"></div>
-              <div className="absolute bottom-[-10px] md:bottom-0 left-1/2 -translate-x-1/2 w-1 h-6 md:h-8 bg-primary-fixed/30"></div>
-            </div>
-          </div>
-
-          {/* Stats/Metrics (Asymmetric Layout) */}
-          <div className="w-full lg:col-span-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-4 md:gap-6">
-            <div className="bg-surface-container-high p-3 md:p-4 border-l-2 border-primary">
-              <p className="font-label text-[8px] md:text-[10px] tracking-[0.2em] text-primary uppercase mb-1 truncate">Links Checked</p>
-              <p className="font-headline text-lg sm:text-xl md:text-2xl font-bold text-on-surface">Live</p>
-            </div>
-            <div className="bg-surface-container-high p-3 md:p-4 border-l-2 border-secondary">
-              <p className="font-label text-[8px] md:text-[10px] tracking-[0.2em] text-secondary uppercase mb-1 truncate">UI Issues</p>
-              <p className="font-headline text-lg sm:text-xl md:text-2xl font-bold text-on-surface">{stats.ui_issues}</p>
-            </div>
-            <div className="col-span-2 sm:col-span-1 lg:col-span-1 bg-surface-container-high p-3 md:p-4 border-l-2 border-error">
-              <p className="font-label text-[8px] md:text-[10px] tracking-[0.2em] text-error uppercase mb-1 truncate">Errors Found</p>
-              <p className="font-headline text-lg sm:text-xl md:text-2xl font-bold text-on-surface">{stats.broken_links + stats.form_errors}</p>
-            </div>
-          </div>
         </div>
-
-        {/* Progress Bar Section */}
-        <div className="max-w-3xl mx-auto mb-10 md:mb-20">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2 sm:gap-0 mb-3">
-            <span className="font-label text-[9px] md:text-[11px] tracking-[0.15em] text-on-surface-variant uppercase">Engine Stability: Nominal</span>
-            <span className="font-headline text-lg md:text-xl font-bold text-primary">42% COMPLETE</span>
-          </div>
-          <div className="h-1.5 w-full bg-surface-container-highest overflow-hidden rounded-full">
-            <div className="h-full bg-gradient-to-r from-primary via-primary-container to-secondary w-[42%] relative">
-              <div className="absolute inset-0 bg-[length:20px_20px] opacity-20" style={{ backgroundImage: 'linear-gradient(45deg, rgba(255,255,255,0.2) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.2) 75%, transparent 75%, transparent)'}}></div>
-            </div>
-          </div>
-        </div>
-
-        {/* Terminal Log Panel */}
-        <div className="bg-surface-container-low/60 backdrop-blur-2xl border border-primary/20 rounded-sm overflow-hidden shadow-[0_40px_100px_rgba(0,0,0,0.4)] md:mx-4 lg:mx-0">
-          {/* Terminal Header */}
-          <div className="bg-surface-container-high px-3 md:px-4 py-3 flex items-center justify-between border-b border-outline-variant/15">
-            <div className="flex items-center gap-2">
-              <div className="flex gap-1.5">
-                <div className="w-2 md:w-2.5 h-2 md:h-2.5 rounded-full bg-error/40"></div>
-                <div className="w-2 md:w-2.5 h-2 md:h-2.5 rounded-full bg-tertiary/40"></div>
-                <div className="w-2 md:w-2.5 h-2 md:h-2.5 rounded-full bg-primary/40"></div>
-              </div>
-              <span className="font-label text-[8px] md:text-[10px] tracking-[0.1em] text-on-surface-variant uppercase ml-2 md:ml-4 truncate">System_Diagnostics_Console</span>
-            </div>
-            <div className="hidden sm:block text-[8px] md:text-[10px] text-primary/60 font-label">UTF-8 // spectral_v2.0</div>
-          </div>
-          
-          {/* Terminal Content */}
-          <div className="p-4 md:p-6 font-mono text-[11px] md:text-[13px] leading-relaxed max-h-48 md:max-h-64 overflow-y-auto custom-scrollbar overflow-x-auto whitespace-nowrap sm:whitespace-normal">
-            <div className="flex gap-2 md:gap-4 mb-2">
-              <span className="text-primary/40 shrink-0">14:02:11</span>
-              <span className="text-primary uppercase font-bold shrink-0">[INFO]</span>
-              <span className="text-on-surface-variant">Crawler initialized. Targeting: https://internal.nexus-portal.io</span>
-            </div>
-            <div className="flex gap-2 md:gap-4 mb-2">
-              <span className="text-primary/40 shrink-0">14:02:14</span>
-              <span className="text-primary uppercase font-bold shrink-0">[INFO]</span>
-              <span className="text-on-surface-variant">Parsing DOM tree... 1,402 elements mapped to neural graph.</span>
-            </div>
-            <div className="flex gap-2 md:gap-4 mb-2">
-              <span className="text-primary/40 shrink-0">14:02:28</span>
-              <span className="text-error uppercase font-bold shrink-0">[ALERT]</span>
-              <span className="text-error-dim">4 broken links detected in /api/v1/auth/callback_legacy...</span>
-            </div>
-            <div className="flex gap-2 md:gap-4 mb-2">
-              <span className="text-primary/40 shrink-0">14:02:35</span>
-              <span className="text-primary uppercase font-bold shrink-0">[SYSTEM]</span>
-              <span className="text-on-surface-variant">Spectral engine at 85% capacity. Adjusting frequency shift...</span>
-            </div>
-            <div className="flex gap-2 md:gap-4 mb-2">
-              <span className="text-primary/40 shrink-0">14:02:40</span>
-              <span className="text-primary uppercase font-bold shrink-0">[INFO]</span>
-              <span className="text-on-surface-variant">Checking Link: /dashboard/settings ... <span className="text-primary">OK</span></span>
-            </div>
-            <div className="flex gap-2 md:gap-4 mb-2">
-              <span className="text-primary/40 shrink-0">14:02:42</span>
-              <span className="text-primary uppercase font-bold shrink-0">[INFO]</span>
-              <span className="text-on-surface-variant">Checking Link: /profile/edit ... <span className="text-primary animate-pulse">PENDING</span></span>
-            </div>
-            <div className="flex gap-2 md:gap-4 mt-2">
-              <span className="text-primary shrink-0 animate-pulse hidden sm:inline">_</span>
-            </div>
-          </div>
-        </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="w-full border-t border-[#434857]/15 bg-[#0d1321]">
-        <div className="flex flex-col md:flex-row justify-between items-center w-full px-4 md:px-8 py-8 md:py-12 max-w-7xl mx-auto gap-4 md:gap-0">
-          <div className="text-base md:text-lg font-black text-[#a1faff] font-headline">
-            Sanjay’s Vision
-          </div>
-          <div className="flex flex-wrap justify-center gap-4 md:gap-8">
-            <Link to="#" className="font-label uppercase text-[8px] md:text-[10px] tracking-[0.1em] text-[#e4e7fb]/60 hover:text-[#00f4fe] transition-colors">Privacy Policy</Link>
-            <Link to="#" className="font-label uppercase text-[8px] md:text-[10px] tracking-[0.1em] text-[#e4e7fb]/60 hover:text-[#00f4fe] transition-colors">Terms of Service</Link>
-            <Link to="#" className="font-label uppercase text-[8px] md:text-[10px] tracking-[0.1em] text-[#e4e7fb]/60 hover:text-[#00f4fe] transition-colors">API Documentation</Link>
-            <Link to="#" className="font-label uppercase text-[8px] md:text-[10px] tracking-[0.1em] text-[#e4e7fb]/60 hover:text-[#00f4fe] transition-colors">System Status</Link>
-          </div>
-          <p className="font-label uppercase text-[8px] md:text-[10px] tracking-[0.1em] text-[#e4e7fb]/60">
-            © 2024 Sanjay’s Vision. Autonomous QA Systems.
-          </p>
-        </div>
-      </footer>
-    </div>
-  );
+    );
 };
 
 export default Scanning;

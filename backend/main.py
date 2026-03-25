@@ -1,12 +1,17 @@
-from fastapi import FastAPI, BackgroundTasks, HTTPException
+import queue
+import asyncio
+from fastapi import FastAPI, BackgroundTasks, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import uuid
 import os
 import logging
 
 from scanner import run_scan
+
+event_queues = {}
 
 # Configure basic logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -25,6 +30,8 @@ app.add_middleware(
 
 os.makedirs("screenshots", exist_ok=True)
 os.makedirs("reports", exist_ok=True)
+
+app.mount("/screenshots", StaticFiles(directory="screenshots"), name="screenshots")
 
 # In-memory database
 scans_db = {}
@@ -50,7 +57,8 @@ async def start_scan(request: ScanRequest, background_tasks: BackgroundTasks):
         "suggestions": []
     }
     
-    background_tasks.add_task(run_scan, scan_id, request.url, scans_db)
+    event_queues[scan_id] = queue.Queue()
+    background_tasks.add_task(run_scan, scan_id, request.url, scans_db, event_queues[scan_id])
     return {"scan_id": scan_id, "status": "started"}
 
 @app.get("/results/{scan_id}")
@@ -68,6 +76,26 @@ async def get_report(scan_id: str):
         raise HTTPException(status_code=404, detail="Report PDF not found on server.")
         
     return FileResponse(pdf_path, media_type='application/pdf', filename=f"SanjayVision_Report_{scan_id}.pdf")
+
+@app.websocket("/scan-stream/{scan_id}")
+async def scan_stream(websocket: WebSocket, scan_id: str):
+    await websocket.accept()
+    if scan_id not in event_queues:
+        await websocket.close()
+        return
+        
+    q = event_queues[scan_id]
+    try:
+        while True:
+            try:
+                event = q.get_nowait()
+                await websocket.send_json(event)
+                if event.get("type") in ["finished", "failed"]:
+                    break
+            except queue.Empty:
+                await asyncio.sleep(0.1)
+    except Exception as e:
+        logger.error(f"WS Error: {e}")
 
 if __name__ == "__main__":
     import uvicorn

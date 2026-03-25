@@ -72,7 +72,7 @@ def generate_pdf_report(scan_id: str, results_data: dict, start_url: str):
         Story.append(Paragraph("System appears perfectly fortified against evaluated vectors.", styles['Normal']))
     else:
         for idx, issue in enumerate(issues, 1):
-            sev_color = "red" if issue['severity'] == "critical" or issue['severity'] == "high" else ("orange" if issue['severity'] == "medium" else "blue")
+            sev_color = "red" if issue['severity'] == "critical" else ("orange" if issue['severity'] == "major" else "blue")
             Story.append(Paragraph(f"{idx}. Threat Axis: {issue['type'].replace('_', ' ').title()} - <font color='{sev_color}'>[{issue['severity'].upper()}]</font>", styles['Heading4']))
             Story.append(Paragraph(f"<b>Endpoint:</b> {issue['page'][:60]}...", styles['Normal']))
             Story.append(Paragraph(f"<b>Detailed Synopsis:</b> {issue['description']}", styles['Normal']))
