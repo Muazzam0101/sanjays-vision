@@ -1,6 +1,6 @@
 import queue
 import asyncio
-from fastapi import FastAPI, BackgroundTasks, HTTPException, WebSocket
+from fastapi import FastAPI, BackgroundTasks, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -19,15 +19,16 @@ class ConnectionManager:
         await websocket.accept()
         self.active_connections[scan_id] = websocket
 
-    async def send(self, scan_id: str, message: dict):
+    async def send(self, scan_id: str, data: dict):
         if scan_id in self.active_connections:
             try:
-                await self.active_connections[scan_id].send_json(message)
-            except Exception as e:
-                logger.error(f"Failed to send WS message to {scan_id}: {e}")
+                await self.active_connections[scan_id].send_json(data)
+            except:
+                self.disconnect(scan_id)
 
     def disconnect(self, scan_id: str):
-        self.active_connections.pop(scan_id, None)
+        if scan_id in self.active_connections:
+            del self.active_connections[scan_id]
 
 manager = ConnectionManager()
 
@@ -99,11 +100,8 @@ async def websocket_endpoint(websocket: WebSocket, scan_id: str):
     await manager.connect(scan_id, websocket)
     try:
         while True:
-            # Keep connection alive and handle client disconnects
-            await websocket.receive_text()
-    except Exception as e:
-        logger.info(f"WebSocket disconnected for scan {scan_id}: {e}")
-    finally:
+            await websocket.receive_text()  # keep connection alive
+    except WebSocketDisconnect:
         manager.disconnect(scan_id)
 
 if __name__ == "__main__":

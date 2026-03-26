@@ -1,6 +1,7 @@
 import asyncio
 import os
 import uuid
+import base64
 import time
 import urllib.parse
 from bs4 import BeautifulSoup
@@ -51,7 +52,7 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
         }})
         
     def emit_issue(issue_type, severity, msg):
-        emit({"type": "issue_detected", "issue_type": issue_type, "severity": severity, "message": msg})
+        emit({"type": "issue_detected", "issue": {"type": issue_type, "severity": severity, "message": msg}})
 
     def on_console(msg):
         if msg.type == "error":
@@ -101,8 +102,9 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
                     
                     # Capture basic navigation screenshot for the stream
                     nav_ss_path = get_ss_path("nav")
-                    await page.screenshot(path=nav_ss_path)
-                    emit({"type": "screenshot", "image": f"http://localhost:8000/{nav_ss_path}"})
+                    img_bytes = await page.screenshot(path=nav_ss_path)
+                    b64_img = base64.b64encode(img_bytes).decode('utf-8')
+                    emit({"type": "screenshot", "image": f"data:image/png;base64,{b64_img}"})
                     
                     if load_time > 3.0:
                         severity = classify_severity("performance_issue")
@@ -169,13 +171,14 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
                             except:
                                 pass
                             ss_path = get_ss_path("ui_issue")
-                            await page.screenshot(path=ss_path)
+                            img_bytes = await page.screenshot(path=ss_path)
+                            b64_img = base64.b64encode(img_bytes).decode('utf-8')
                             severity = classify_severity("ui_issue")
                             issues.append({"page": current_url, "type": "ui_issue", "severity": severity, "description": "Image element lacks valid 'src' property.", "screenshot": ss_path})
                             scans_db[scan_id]["ui_issues"] += 1
                             emit_issue("ui", severity, "Image lacks 'src'")
                             emit_metrics()
-                            emit({"type": "screenshot", "image": f"http://localhost:8000/{ss_path}"})
+                            emit({"type": "screenshot", "image": f"data:image/png;base64,{b64_img}"})
                             
                         if alt is None or alt.strip() == "":
                             try:
@@ -183,12 +186,13 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
                             except:
                                 pass
                             ss_path = get_ss_path("accessibility_issue")
-                            await page.screenshot(path=ss_path)
+                            img_bytes = await page.screenshot(path=ss_path)
+                            b64_img = base64.b64encode(img_bytes).decode('utf-8')
                             severity = classify_severity("accessibility_issue")
                             issues.append({"page": current_url, "type": "accessibility_issue", "severity": severity, "description": "Image is missing 'alt' label property.", "screenshot": ss_path})
                             suggestions.add("Add alt tags to all image assets for 100% ADA compliance.")
                             emit_issue("accessibility", severity, "Missing 'alt' label")
-                            emit({"type": "screenshot", "image": f"http://localhost:8000/{ss_path}"})
+                            emit({"type": "screenshot", "image": f"data:image/png;base64,{b64_img}"})
                             
                     # UX Click Target Analysis
                     clickables = await page.query_selector_all("a, button, input[type='submit']")
@@ -210,13 +214,14 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
                                 except:
                                     pass
                                 ss_path = get_ss_path("ux_issue")
-                                await page.screenshot(path=ss_path)
+                                img_bytes = await page.screenshot(path=ss_path)
+                                b64_img = base64.b64encode(img_bytes).decode('utf-8')
                                 severity = classify_severity("ux_issue")
                                 issues.append({"page": current_url, "type": "ux_issue", "severity": severity, "description": f"Poor UX - Click target is too small for mobile touch standards ({int(box['width'])}x{int(box['height'])})", "screenshot": ss_path})
                                 scans_db[scan_id]["ui_issues"] += 1
                                 emit_issue("ux", severity, "Small clickable area")
                                 emit_metrics()
-                                emit({"type": "screenshot", "image": f"http://localhost:8000/{ss_path}"})
+                                emit({"type": "screenshot", "image": f"data:image/png;base64,{b64_img}"})
                         except Exception:
                             pass
 
@@ -247,7 +252,8 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
                                 if is_valid:
                                     ss_path = get_ss_path("form_error")
                                     await inp.evaluate("(el) => el.style.border = '5px solid red'")
-                                    await page.screenshot(path=ss_path)
+                                    img_bytes = await page.screenshot(path=ss_path)
+                                    b64_img = base64.b64encode(img_bytes).decode('utf-8')
                                     
                                     severity = classify_severity("form_error", payload)
                                     issues.append({
@@ -261,7 +267,7 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
                                     suggestions.add("Ensure deep input sanitization for XSS and SQL injection payloads server-side.")
                                     emit_issue("security", severity, description)
                                     emit_metrics()
-                                    emit({"type": "screenshot", "image": f"http://localhost:8000/{ss_path}"})
+                                    emit({"type": "screenshot", "image": f"data:image/png;base64,{b64_img}"})
                                     break
 
                 except PlaywrightError as pe:
@@ -273,8 +279,10 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
             emit_log("Finalizing Runtime Evaluation...")
             for err in js_errors_detected[:3]:
                 ss_path = get_ss_path("js_error")
+                b64_img = None
                 try:
-                    await page.screenshot(path=ss_path)
+                    img_bytes = await page.screenshot(path=ss_path)
+                    b64_img = base64.b64encode(img_bytes).decode('utf-8')
                 except:
                     ss_path = None
                 
@@ -284,8 +292,8 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
                 suggestions.add("Resolve all console runtime warnings prior to React hydration mapping.")
                 emit_issue("js_error", severity, f"JS Error: {err[:50]}")
                 emit_metrics()
-                if ss_path:
-                    emit({"type": "screenshot", "image": f"http://localhost:8000/{ss_path}"})
+                if b64_img:
+                    emit({"type": "screenshot", "image": f"data:image/png;base64,{b64_img}"})
 
             await context.close()
             await browser.close()
@@ -328,4 +336,4 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
     scans_db[scan_id]["status"] = "completed"
     emit({"type": "progress", "value": 100})
     emit_log("Scan Successfully Completed. Report Archived.")
-    emit({"type": "finished"})
+    emit({"type": "complete"})

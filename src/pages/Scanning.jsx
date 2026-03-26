@@ -45,7 +45,7 @@ const Scanning = () => {
                         if (newLogs.length > 50) return newLogs.slice(newLogs.length - 50);
                         return newLogs;
                     });
-                } else if (data.type === 'finished') {
+                } else if (data.type === 'complete') {
                     ws.close();
                     setTimeout(() => navigate(`/dashboard?scan_id=${scanId}`), 1000);
                 } else if (data.type === 'failed') {
