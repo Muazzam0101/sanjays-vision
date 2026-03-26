@@ -20,18 +20,7 @@ def classify_severity(issue_type: str, context: str = "") -> str:
     features = f"{issue_type} {context}".replace("_", " ")
     return classify_severity_ml(features)
 
-def run_scan(scan_id: str, start_url: str, scans_db: dict, event_queue=None):
-    """
-    Synchronous thread wrapper. FastAPI will toss this into a worker thread,
-    where we initialize a pristine Windows Proactor Event loop.
-    """
-    import sys
-    if sys.platform == 'win32':
-        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-    
-    asyncio.run(_run_scan_async(scan_id, start_url, scans_db, event_queue))
-
-async def _run_scan_async(scan_id: str, start_url: str, scans_db: dict, event_queue=None):
+async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
     logger.info(f"V2 Scan {scan_id} started on {start_url}")
     visited = set()
     to_visit = [start_url]
@@ -47,8 +36,8 @@ async def _run_scan_async(scan_id: str, start_url: str, scans_db: dict, event_qu
         return f"screenshots/{scan_id}_{issue_type}_{screenshot_counter}.png"
 
     def emit(event_data):
-        if event_queue:
-            event_queue.put(event_data)
+        if manager:
+            asyncio.create_task(manager.send(scan_id, event_data))
 
     def emit_log(msg):
         emit({"type": "log", "message": msg})

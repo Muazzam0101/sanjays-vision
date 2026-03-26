@@ -18,7 +18,8 @@ const Scanning = () => {
         if (!scanId) return;
 
         const connectWebSocket = () => {
-            const wsUrl = `ws://localhost:8000/scan-stream/${scanId}`;
+            const wsBaseUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8000';
+            const wsUrl = `${wsBaseUrl}/ws/${scanId}`;
             const ws = new WebSocket(wsUrl);
 
             ws.onmessage = (event) => {

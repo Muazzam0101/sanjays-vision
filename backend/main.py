@@ -11,7 +11,25 @@ import logging
 
 from scanner import run_scan
 
-event_queues = {}
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections = {}
+
+    async def connect(self, scan_id: str, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections[scan_id] = websocket
+
+    async def send(self, scan_id: str, message: dict):
+        if scan_id in self.active_connections:
+            try:
+                await self.active_connections[scan_id].send_json(message)
+            except Exception as e:
+                logger.error(f"Failed to send WS message to {scan_id}: {e}")
+
+    def disconnect(self, scan_id: str):
+        self.active_connections.pop(scan_id, None)
+
+manager = ConnectionManager()
 
 # Configure basic logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -40,7 +58,7 @@ class ScanRequest(BaseModel):
     url: str
 
 @app.post("/scan")
-async def start_scan(request: ScanRequest, background_tasks: BackgroundTasks):
+async def start_scan(request: ScanRequest):
     scan_id = str(uuid.uuid4())
     logger.info(f"Initializing V2 Smart Scan: {scan_id} for {request.url}")
     
@@ -57,8 +75,7 @@ async def start_scan(request: ScanRequest, background_tasks: BackgroundTasks):
         "suggestions": []
     }
     
-    event_queues[scan_id] = queue.Queue()
-    background_tasks.add_task(run_scan, scan_id, request.url, scans_db, event_queues[scan_id])
+    asyncio.create_task(run_scan(scan_id, request.url, scans_db, manager))
     return {"scan_id": scan_id, "status": "started"}
 
 @app.get("/results/{scan_id}")
@@ -77,25 +94,17 @@ async def get_report(scan_id: str):
         
     return FileResponse(pdf_path, media_type='application/pdf', filename=f"SanjayVision_Report_{scan_id}.pdf")
 
-@app.websocket("/scan-stream/{scan_id}")
-async def scan_stream(websocket: WebSocket, scan_id: str):
-    await websocket.accept()
-    if scan_id not in event_queues:
-        await websocket.close()
-        return
-        
-    q = event_queues[scan_id]
+@app.websocket("/ws/{scan_id}")
+async def websocket_endpoint(websocket: WebSocket, scan_id: str):
+    await manager.connect(scan_id, websocket)
     try:
         while True:
-            try:
-                event = q.get_nowait()
-                await websocket.send_json(event)
-                if event.get("type") in ["finished", "failed"]:
-                    break
-            except queue.Empty:
-                await asyncio.sleep(0.1)
+            # Keep connection alive and handle client disconnects
+            await websocket.receive_text()
     except Exception as e:
-        logger.error(f"WS Error: {e}")
+        logger.info(f"WebSocket disconnected for scan {scan_id}: {e}")
+    finally:
+        manager.disconnect(scan_id)
 
 if __name__ == "__main__":
     import uvicorn
