@@ -41,7 +41,13 @@ const Scanning = () => {
                     setMetrics(data.data);
                 } else if (data.type === 'issue_detected') {
                     setLogs(prev => {
-                        const newLogs = [...prev, { time: new Date().toLocaleTimeString('en-US', { hour12: false }), msg: `[ALERT] ${data.severity.toUpperCase()} Issue Detected: ${data.message}`, type: 'alert' }];
+                        const sev = data.issue?.severity || 'unknown';
+                        const msg = data.issue?.message || 'Details unavailable';
+                        const newLogs = [...prev, { 
+                            time: new Date().toLocaleTimeString('en-US', { hour12: false }), 
+                            msg: `[ALERT] ${sev.toUpperCase()} Issue Detected: ${msg}`, 
+                            type: 'alert' 
+                        }];
                         if (newLogs.length > 50) return newLogs.slice(newLogs.length - 50);
                         return newLogs;
                     });
