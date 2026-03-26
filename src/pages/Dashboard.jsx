@@ -71,7 +71,12 @@ const Dashboard = () => {
             <p className="text-on-surface-variant font-body text-sm md:text-base">Autonomous vulnerability assessment for <span className="text-primary break-all">sanjay-vision.ai</span></p>
           </div>
           <div className="flex flex-wrap gap-3 w-full md:w-auto">
-            <a href={scanId ? `http://localhost:8000/report/${scanId}` : '#'} target="_blank" rel="noreferrer" className="flex-1 md:flex-none justify-center items-center gap-2 border border-outline-variant/30 px-4 py-2 font-label text-[10px] md:text-xs uppercase tracking-wider hover:bg-surface-container-high transition-colors flex">
+            <a 
+              href={scanId ? `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/report/${scanId}` : '#'} 
+              target="_blank" 
+              rel="noreferrer" 
+              className="flex-1 md:flex-none justify-center items-center gap-2 border border-outline-variant/30 px-4 py-2 font-label text-[10px] md:text-xs uppercase tracking-wider hover:bg-surface-container-high transition-colors flex"
+            >
               <span className="material-symbols-outlined text-sm" data-icon="download">download</span>
               Download Report
             </a>
