@@ -1,5 +1,6 @@
-﻿fastapi
-uvicorn
+fastapi
+uvicorn[standard]
+websockets
 playwright
 beautifulsoup4
 reportlab
