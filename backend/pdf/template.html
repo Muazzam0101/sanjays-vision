@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sanjay’s Vision – Audit Manifesto</title>
+    <style>
+        {{ nested_styles }}
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        
+        <!-- PAGE 1: COVER -->
+        <div class="page-container">
+            <div class="cover-section thick-border">
+                <h1 class="cover-title">SANJAY'S<br>VISION</h1>
+                <div class="cover-subtitle">AUTONOMOUS QA REPORT</div>
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 40px;">
+                <div class="meta-card">
+                    <p style="margin-bottom: 10px;">URL: <b>{{ start_url }}</b></p>
+                    <p style="margin-bottom: 10px;">DATE: <b>{{ timestamp }}</b></p>
+                    <p>SCAN_ID: <b>{{ scan_id }}</b></p>
+                </div>
+                <div class="score-card font-headline">
+                    <div style="font-size: 14px; margin-bottom: 5px;">HEALTH_SCORE</div>
+                    <div class="score-val">{{ health_score }}%</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAGE 2: SUMMARY -->
+        <div class="page-container">
+            <h2 style="font-size: 40px; border-bottom: 5px solid black; padding-bottom: 15px; margin-bottom: 30px;">SCAN_SUMMARY</h2>
+            <div class="metrics-grid">
+                <div class="metric-card" style="background-color: var(--primary-red); color: #FFF;">
+                    <div class="metric-val">{{ metrics.links }}</div>
+                    <div class="metric-label">DESTRUCTIVE_LINKS</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-val">{{ metrics.ui }}</div>
+                    <div class="metric-label">UI_INCONSISTENCIES</div>
+                </div>
+                <div class="metric-card" style="background-color: var(--primary-yellow);">
+                    <div class="metric-val">{{ metrics.forms }}</div>
+                    <div class="metric-label">FORM_INTEGRITY_ERRORS</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-val">{{ metrics.performance }}</div>
+                    <div class="metric-label">LATENCY_THREATS</div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 40px; border: 5px solid black; padding: 30px; background: white; box-shadow: 10px 10px 0px var(--primary-yellow);">
+                <h3 style="margin-bottom: 10px;">AI VERDICT</h3>
+                <p style="text-transform: uppercase; font-weight: 700; line-height: 1.4;">The autonomous inspector has identified {{ issues|length }} primary anomalies in the system neural traversal. Strategic prioritization is required for immediate resolution.</p>
+            </div>
+        </div>
+
+        <!-- PAGE 3+: BUG REPORTS -->
+        <div class="page-container">
+            <h2 style="font-size: 40px; border-bottom: 5px solid black; padding-bottom: 15px; margin-bottom: 40px;">DETECTED_ISSUES</h2>
+            
+            {% for issue in issues %}
+            <div class="issue-card">
+                <div class="issue-header">
+                    <span class="severity-badge sev-{{ issue.severity.lower() }}">{{ issue.severity.upper() }}</span>
+                    <span style="font-family: monospace; font-size: 12px;">ID_ANOMALY_{{ loop.index }}</span>
+                </div>
+                <div class="issue-body">
+                    <h3 class="issue-desc">{{ issue.description|upper }}</h3>
+                    <div style="background: #eee; padding: 10px; font-family: monospace; font-size: 11px; border: 1px dashed black;">
+                        LOC: {{ issue.page }}
+                    </div>
+                    
+                    {% if issue.screenshot_base64 %}
+                    <div class="screenshot-frame">
+                        <img src="{{ issue.screenshot_base64 }}" alt="Issue Evidence">
+                        <div class="fig-caption">FIG {{ loop.index }}.A: EVIDENCE CAPTURE</div>
+                    </div>
+                    {% endif %}
+                    
+                    {# Heatmap Logic (Step 6) #}
+                    {% if issue.heatmap_base64 %}
+                    <div class="screenshot-frame" style="margin-top: 15px; border-color: var(--primary-blue);">
+                        <img src="{{ issue.heatmap_base64 }}" alt="Heatmap Evidence">
+                        <div class="fig-caption" style="background: var(--primary-blue);">FIG {{ loop.index }}.B: ELEMENT HEATMAP</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <footer style="margin-top: auto; border-top: 5px solid black; padding-top: 20px; display: flex; justify-content: space-between; align-items: center; font-family: 'Space Grotesk'; font-weight: 900; font-size: 12px; text-transform: uppercase;">
+            <span>Generated by Sanjay’s Vision // Autonomous QA</span>
+            <span>Ref: {{ scan_id }}</span>
+        </footer>
+
+    </div>
+    
+    <!-- Watermark Identifier (Step 9) -->
+    <div class="watermark-v2">NEO BRUTALIST REPORT V2</div>
+</body>
+</html>

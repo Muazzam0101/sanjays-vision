@@ -9,7 +9,7 @@ from playwright.async_api import async_playwright, Error as PlaywrightError
 import logging
 import traceback
 
-from report_generator import generate_pdf_report
+from pdf import generate_pdf_report
 from ml_classifier import classify_severity_ml
 
 logger = logging.getLogger(__name__)
