@@ -3,6 +3,6 @@ uvicorn[standard]
 websockets
 playwright
 beautifulsoup4
-reportlab
 scikit-learn
 pydantic
+jinja2
