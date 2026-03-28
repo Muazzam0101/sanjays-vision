@@ -125,6 +125,10 @@ async def run_scan_wrapper(scan_id, url):
         })
 
 # ---------------- RESULTS ----------------
+@app.get("/scans")
+async def list_scans():
+    return [{"scan_id": k, **v} for k, v in scans_db.items()]
+
 @app.get("/results/{scan_id}")
 async def get_results(scan_id: str):
     if scan_id not in scans_db:

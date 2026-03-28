@@ -1,157 +1,199 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../api';
 
 const History = () => {
     const navigate = useNavigate();
     const [scans, setScans] = useState([]);
+    const [searchTerm, setSearchTerm] = useState('');
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const fetchHistory = async () => {
-            try {
-                const response = await api.get('/history');
-                setScans(response.data);
-            } catch (error) {
-                console.error(error);
-                // Demo data
-                setScans([
-                    { id: '#8821', url: 'https://vision-hq.com', status: 'COMPLETED', bugs: '12', date: '2024-03-20', score: 92 },
-                    { id: '#8820', url: 'https://alpha-test.io', status: 'FAILED', bugs: '00', date: '2024-03-19', score: '--' },
-                    { id: '#8819', url: 'https://neural-link.net', status: 'COMPLETED', bugs: '45', date: '2024-03-18', score: 74 },
-                    { id: '#8818', url: 'https://beta-labs.org', status: 'COMPLETED', bugs: '08', date: '2024-03-15', score: 98 }
-                ]);
-            } finally {
+        api.get('/scans')
+            .then(res => {
+                setScans(res.data);
                 setLoading(false);
-            }
-        };
-        fetchHistory();
+            })
+            .catch(err => {
+                console.error(err);
+                setLoading(false);
+            });
     }, []);
 
+    const filteredScans = scans.filter(s => 
+        (s.url || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
     return (
-        <div className="bg-[#f9f9f9] font-['Work_Sans'] text-[#1a1c1c] min-h-screen flex flex-col md:flex-row">
+        <div className="flex min-h-screen bg-[#f9f9f9] text-[#1a1c1c] font-body">
             <style>{`
                 .neo-shadow { box-shadow: 4px 4px 0px 0px #000000; }
                 .neo-shadow-lg { box-shadow: 8px 8px 0px 0px #000000; }
                 .active-press:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0px 0px #000000; }
-                .font-headline { font-family: 'Space Grotesk', sans-serif; }
             `}</style>
 
-            {/* Sidebar */}
-            <aside className="w-full md:w-64 border-b-4 md:border-b-0 md:border-r-4 border-black bg-white flex md:flex-col p-6 sticky top-0 md:h-screen z-50">
-                <div className="flex-1">
-                    <div className="mb-12 hidden md:block">
-                        <Link to="/" className="font-headline font-black text-2xl uppercase tracking-tighter">SANJAY'S VISION</Link>
-                    </div>
-                    <nav className="flex md:flex-col gap-4 overflow-x-auto md:overflow-visible pb-4 md:pb-0">
-                        <Link className="flex items-center gap-4 p-4 border-4 border-black hover:bg-white font-headline font-black uppercase text-sm hover:neo-shadow active-press transition-none" to="/dashboard">
-                            <span className="material-symbols-outlined">dashboard</span> Dashboard
-                        </Link>
-                        <Link className="flex items-center gap-4 p-4 border-4 border-black hover:bg-white font-headline font-black uppercase text-sm hover:neo-shadow active-press transition-none" to="/scanning">
-                            <span className="material-symbols-outlined">add_circle</span> New Scan
-                        </Link>
-                        <Link className="flex items-center gap-4 p-4 border-4 border-black bg-yellow-400 font-headline font-black uppercase text-sm neo-shadow active-press" to="/history">
-                            <span className="material-symbols-outlined">history</span> History
-                        </Link>
-                        <Link className="flex items-center gap-4 p-4 border-4 border-black hover:bg-white font-headline font-black uppercase text-sm hover:neo-shadow active-press transition-none" to="/report">
-                            <span className="material-symbols-outlined">description</span> Reports
-                        </Link>
-                    </nav>
+            {/* SideNavBar (Consistent Component) */}
+            <aside className="hidden md:flex flex-col gap-4 p-4 h-screen w-64 border-r-4 border-black bg-white sticky top-0 z-50">
+                <div className="mb-8">
+                    <h1 className="font-headline font-black text-black text-2xl tracking-tighter italic">INSPECTOR</h1>
+                    <p className="font-headline font-bold text-xs text-gray-500 uppercase">V1.0.4-AUTONOMOUS</p>
                 </div>
+                <nav className="flex flex-col gap-3 flex-grow">
+                    <Link to="/dashboard" className="flex items-center gap-3 p-3 font-headline font-bold text-lg text-black hover:bg-gray-100 hover:translate-x-1 active:scale-95 transition-transform duration-75">
+                        <span className="material-symbols-outlined">dashboard</span>
+                        Dashboard
+                    </Link>
+                    <Link to="/scanning" className="flex items-center gap-3 p-3 font-headline font-bold text-lg text-black hover:bg-gray-100 hover:translate-x-1 active:scale-95 transition-transform duration-75">
+                        <span className="material-symbols-outlined">biotech</span>
+                        New Scan
+                    </Link>
+                    <Link to="/history" className="flex items-center gap-3 p-3 font-headline font-bold text-lg bg-yellow-400 text-black border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:scale-95 transition-transform duration-75">
+                        <span className="material-symbols-outlined">history</span>
+                        History
+                    </Link>
+                    <Link to="/report" className="flex items-center gap-3 p-3 font-headline font-bold text-lg text-black hover:bg-gray-100 hover:translate-x-1 active:scale-95 transition-transform duration-75">
+                        <span className="material-symbols-outlined">analytics</span>
+                        Reports
+                    </Link>
+                    <Link to="/settings" className="flex items-center gap-3 p-3 font-headline font-bold text-lg text-black hover:bg-gray-100 hover:translate-x-1 active:scale-95 transition-transform duration-75">
+                        <span className="material-symbols-outlined">settings</span>
+                        Settings
+                    </Link>
+                </nav>
+                <button onClick={() => navigate('/scanning')} className="mt-auto bg-black text-white p-4 font-headline font-bold text-sm tracking-widest border-2 border-black hover:bg-yellow-400 hover:text-black transition-none active:translate-x-[2px] active:translate-y-[2px] active:shadow-none">
+                    START SCAN
+                </button>
             </aside>
 
-            {/* Content Area */}
-            <main className="flex-1 p-8 overflow-y-auto">
-                <div className="max-w-6xl mx-auto">
-                    {/* Header */}
-                    <div className="flex justify-between items-end mb-12">
-                        <div>
-                            <h2 className="font-headline text-5xl font-black uppercase italic tracking-tighter">Neural Archive</h2>
-                            <p className="font-headline font-bold text-gray-400 uppercase tracking-widest">Global Scan History // V1.0.4-AUTONOMOUS</p>
-                        </div>
+            <div className="flex-grow flex flex-col min-h-screen overflow-x-hidden min-w-0">
+                {/* TopAppBar Component */}
+                <header className="flex justify-between items-center px-6 py-4 w-full bg-white border-b-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] sticky top-0 z-50">
+                    <div className="flex items-center gap-8 min-w-0">
+                        <span className="font-headline font-black text-2xl text-black uppercase italic tracking-tighter truncate md:block hidden">SANJAY'S VISION</span>
+                        <nav className="hidden lg:flex items-center gap-6">
+                            <Link to="/dashboard" className="font-headline font-bold uppercase tracking-tighter text-gray-600 hover:bg-yellow-400 hover:text-black transition-none px-2 py-1">Dashboard</Link>
+                            <Link to="/report" className="font-headline font-bold uppercase tracking-tighter text-black underline decoration-4 underline-offset-8 px-2 py-1">Reports</Link>
+                        </nav>
                     </div>
-
-                    {/* Filters Row */}
-                    <div className="flex flex-wrap gap-4 mb-8">
-                        <div className="flex-1 min-w-[300px] relative">
-                            <input className="w-full bg-white border-4 border-black p-4 font-bold uppercase text-xs focus:outline-none neo-shadow" placeholder="Search Target Neural Signature..." />
-                            <span className="absolute right-4 top-4 material-symbols-outlined opacity-30">search</span>
-                        </div>
-                        <select className="bg-white border-4 border-black px-6 font-bold uppercase text-xs focus:outline-none neo-shadow">
-                            <option>Sort By: Newest</option>
-                            <option>Sort By: Health</option>
-                        </select>
-                        <button className="bg-white border-4 border-black px-6 py-4 font-bold uppercase text-xs neo-shadow active-press flex items-center gap-2">
-                             <span className="material-symbols-outlined text-sm">filter_list</span> Filter
+                    <div className="flex items-center gap-4">
+                        <button className="p-2 border-2 border-black bg-white hover:bg-yellow-400 active-press">
+                            <span className="material-symbols-outlined align-middle">notifications</span>
+                        </button>
+                        <button className="p-2 border-2 border-black bg-white hover:bg-yellow-400 active-press">
+                            <span className="material-symbols-outlined align-middle">account_circle</span>
                         </button>
                     </div>
+                </header>
 
-                    {/* History Table */}
-                    <div className="bg-white border-4 border-black neo-shadow-lg overflow-hidden">
-                        <table className="w-full text-left font-['Work_Sans'] font-bold uppercase text-xs">
+                <main className="p-6 md:p-12 space-y-12 max-w-7xl mx-auto w-full">
+                    {/* Page Header Section */}
+                    <section className="relative flex justify-between items-start md:items-end">
+                        <h2 className="text-6xl md:text-8xl font-black font-headline tracking-tighter uppercase leading-none -ml-1 md:-ml-2">
+                            Scan <br/> <span className="text-black bg-yellow-400 px-2 italic">History</span>
+                        </h2>
+                        <div className="hidden lg:block border-4 border-black p-4 bg-white shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] w-64 rotate-2">
+                            <p className="font-bold text-xs uppercase tracking-widest text-gray-400 mb-1">Total Audits</p>
+                            <p className="text-5xl font-black font-headline">{scans.length}</p>
+                        </div>
+                    </section>
+
+                    {/* Filters & Controls */}
+                    <section className="flex flex-col lg:flex-row gap-6 items-end lg:items-center justify-between">
+                        <div className="w-full lg:w-1/2">
+                            <label className="block font-headline font-black text-sm uppercase mb-2">Search Records</label>
+                            <div className="flex">
+                                <input 
+                                    className="w-full bg-white border-4 border-black p-4 font-bold text-lg focus:ring-0 focus:outline-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" 
+                                    placeholder="URL, DOMAIN, OR PROJECT NAME..." 
+                                    type="text"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                                <button className="bg-yellow-400 border-y-4 border-r-4 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-black hover:text-white transition-none active-press">
+                                    <span className="material-symbols-outlined font-black">search</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div className="flex gap-4 w-full lg:w-auto">
+                            <div className="flex-grow lg:flex-grow-0">
+                                <label className="block font-headline font-black text-sm uppercase mb-2">Sort By</label>
+                                <select className="w-full bg-white border-4 border-black p-4 font-bold appearance-none cursor-pointer focus:ring-0 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase">
+                                    <option>LATEST_SCAN</option>
+                                    <option>OLDEST_SCAN</option>
+                                    <option>MOST_ISSUES</option>
+                                </select>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Scan History Table */}
+                    <section className="overflow-x-auto border-4 border-black shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] bg-white mb-20">
+                        <table className="w-full text-left border-collapse">
                             <thead>
-                                <tr className="border-b-4 border-black bg-gray-100">
-                                    <th className="p-6 border-r-4 border-black">ID</th>
-                                    <th className="p-6 border-r-4 border-black">TARGET_URL</th>
-                                    <th className="p-6 border-r-4 border-black">STATS</th>
-                                    <th className="p-6 border-r-4 border-black">HEALTH</th>
-                                    <th className="p-6 border-r-4 border-black">STATUS</th>
-                                    <th className="p-6">COMMAND</th>
+                                <tr className="bg-black text-white border-b-4 border-black font-headline uppercase text-sm tracking-widest">
+                                    <th className="p-6 border-r border-gray-800">Target URL</th>
+                                    <th className="p-6 border-r border-gray-800">Scan Status</th>
+                                    <th className="p-6 border-r border-gray-800 text-center">Score</th>
+                                    <th className="p-6 text-right">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                {scans.map(scan => (
-                                    <tr key={scan.id} className="border-b-4 border-black hover:bg-yellow-50 transition-colors group">
-                                        <td className="p-6 border-r-4 border-black font-headline font-black text-lg underline decoration-4 underline-offset-4 group-hover:bg-yellow-400 group-hover:text-black">{scan.id}</td>
-                                        <td className="p-6 border-r-4 border-black">
-                                            <div className="flex flex-col">
-                                                <span className="truncate max-w-[200px] text-sm">{scan.url}</span>
-                                                <span className="text-[10px] opacity-40">{scan.date}</span>
-                                            </div>
-                                        </td>
-                                        <td className="p-6 border-r-4 border-black">
-                                            <div className="flex flex-col gap-1">
-                                                <div className="flex justify-between items-center bg-red-100 border border-black px-1 text-[9px]">
-                                                    <span>BUGS:</span> <span>{scan.bugs}</span>
+                            <tbody className="divide-y-4 divide-black">
+                                {filteredScans.length > 0 ? filteredScans.map((s, idx) => (
+                                    <tr key={idx} className="bg-white hover:bg-yellow-400 transition-none group cursor-pointer" onClick={() => navigate(`/report?scan_id=${s.scan_id}`)}>
+                                        <td className="p-6 font-bold">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 border-2 border-black flex items-center justify-center bg-white">
+                                                    <span className="material-symbols-outlined font-bold">language</span>
                                                 </div>
-                                                <div className="flex justify-between items-center bg-blue-100 border border-black px-1 text-[9px]">
-                                                    <span>LINKS:</span> <span>04</span>
-                                                </div>
+                                                <span className="truncate max-w-[200px] lg:max-w-md font-mono text-sm uppercase">{s.url}</span>
                                             </div>
                                         </td>
-                                        <td className="p-6 border-r-4 border-black font-headline font-black text-2xl italic text-center text-red-500">{scan.score}</td>
-                                        <td className="p-6 border-r-4 border-black">
-                                            <div className="flex flex-col gap-2">
-                                                <span className={`px-2 py-1 border-2 border-black text-center ${scan.status === 'COMPLETED' ? 'bg-green-400' : 'bg-red-400'}`}>
-                                                    {scan.status}
-                                                </span>
-                                            </div>
+                                        <td className="p-6 font-black uppercase text-xs">
+                                            <span className={`px-3 py-1 border-2 border-black ${s.status === 'completed' ? 'bg-white' : 'bg-red-400 text-white'}`}>
+                                                {s.status}
+                                            </span>
                                         </td>
-                                        <td className="p-6">
+                                        <td className="p-6 text-center font-black text-2xl italic tracking-tighter">
+                                            {s.health_score}%
+                                        </td>
+                                        <td className="p-6 text-right flex flex-col md:flex-row gap-2 justify-end">
                                             <button 
-                                                onClick={() => navigate(`/report?scan_id=${scan.id}`)}
-                                                className="w-full bg-black text-white border-2 border-black p-2 font-headline font-black hover:bg-yellow-400 hover:text-black active-press transition-none"
+                                                onClick={(e) => { e.stopPropagation(); navigate(`/report?scan_id=${s.scan_id}`); }}
+                                                className="bg-white border-2 border-black px-4 py-2 font-headline font-black uppercase text-xs shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] group-hover:bg-black group-hover:text-white transition-none active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
                                             >
-                                                VIEW MANIFESTO
+                                                VIEW_REPORT
                                             </button>
+                                            <a 
+                                                href={`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/report/${s.scan_id}`} 
+                                                target="_blank" 
+                                                rel="noreferrer"
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="bg-yellow-400 text-black border-2 border-black px-4 py-2 font-headline font-black uppercase text-xs shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-black hover:text-white transition-none active:translate-x-[2px] active:translate-y-[2px] active:shadow-none inline-block text-center"
+                                            >
+                                                DOWNLOAD_PDF
+                                            </a>
                                         </td>
                                     </tr>
-                                ))}
+                                )) : (
+                                    <tr>
+                                        <td colSpan="4" className="p-20 text-center text-gray-500 font-headline font-black uppercase text-2xl">
+                                            {loading ? 'Decrypting Records...' : 'No Archival Data Found'}
+                                        </td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
-                    </div>
-                    
-                    <div className="mt-8 flex justify-center gap-4">
-                        <button className="bg-white border-4 border-black p-4 neo-shadow active-press">
-                            <span className="material-symbols-outlined">chevron_left</span>
-                        </button>
-                        <div className="bg-black text-white border-4 border-black p-4 neo-shadow font-headline font-black">01 / 12</div>
-                        <button className="bg-white border-4 border-black p-4 neo-shadow active-press">
-                            <span className="material-symbols-outlined">chevron_right</span>
-                        </button>
-                    </div>
-                </div>
-            </main>
+                    </section>
+                </main>
+
+                {/* Mobile Floating Action Button */}
+                <button 
+                    onClick={() => navigate('/scanning')}
+                    className="md:hidden fixed bottom-6 right-6 bg-yellow-400 text-black border-4 border-black p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none z-[100]"
+                >
+                    <span className="material-symbols-outlined text-3xl font-black">add</span>
+                </button>
+            </div>
         </div>
     );
 };

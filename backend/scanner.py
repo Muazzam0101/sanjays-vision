@@ -329,7 +329,7 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
     emit_log("Generating Cryptographic PDF Report...")
     # Compile
     try:
-        generate_pdf_report(scan_id, scans_db[scan_id], start_url)
+        await generate_pdf_report(scan_id, scans_db[scan_id], start_url)
     except Exception as pdf_e:
         logger.error(f"Generate PDF failed: {pdf_e}")
         
