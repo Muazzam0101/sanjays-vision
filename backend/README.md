@@ -6,7 +6,7 @@ A production-ready Python backend built for the Sanjay's Vision platform. It uti
 - **API Framework**: FastAPI
 - **Web Automation**: Playwright (Async Python)
 - **DOM Parsing**: BeautifulSoup4
-- **PDF Engine**: ReportLab
+- **PDF Engine**: Jinja2 + Playwright (PDF Rendering)
 
 ## Core Endpoints
 ### 1. Start a New Scan
@@ -65,7 +65,7 @@ The backend API will be instantly available on `http://localhost:8000`. You can 
 ## File Manifest
 - `main.py`: Bootstraps the backend, configures CORS, and handles HTTP API endpoints.
 - `scanner.py`: Background automation task orchestrating the Playwright headless browser. It maps URLs and injects evaluation scripts to locate issues and captures screenshots.
-- `report_generator.py`: Consumes the structured output from `scanner.py` and compiles a beautiful executive-ready document via ReportLab.
+- `pdf/`: A modular package for high-fidelity PDF generation using Jinja2 templates and Playwright rendering.
 - `requirements.txt`: Tracks the precise dependency footprint.
 - `/screenshots`: Auto-generated directory for bug snapshots.
 - `/reports`: Auto-generated directory for deployed PDFs.
