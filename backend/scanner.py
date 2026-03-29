@@ -14,6 +14,94 @@ from ml_classifier import classify_severity_ml
 
 logger = logging.getLogger(__name__)
 
+# Step 1: Modular Form Validation Test Function
+async def test_form_validation(page, current_url, issues, scans_db, scan_id, get_ss_path, safe_screenshot, heatmap_data, emit_issue, emit_log, emit_metrics):
+    """
+    Modular Form Stress Testing (Steps 1-6)
+    Tests for weak validation, empty submissions, and required field bypass.
+    """
+    print(f"FORM TESTING STARTED: {current_url}") # Step 11
+    
+    try:
+        # Step 2: Detect Forms
+        forms = await page.query_selector_all("form")
+        if not forms:
+            return # Exit silently
+            
+        print(f"FORMS FOUND: {len(forms)}") # Step 11
+        
+        for i, form in enumerate(forms[:2]): # Step 9: Limit execution
+            # Capture inputs for this form
+            inputs = await form.query_selector_all("input[type='text'], input[type='email'], input[type='search'], input[type='password']")
+            submit = await form.query_selector("button[type='submit'], input[type='submit'], button")
+            
+            if not submit: continue
+            
+            # Sub-test 1: Empty Submission
+            emit_log(f"Form {i+1}: Testing empty submission...")
+            await submit.click(force=True)
+            await page.wait_for_timeout(500)
+            
+            # Check if URL changed significantly without error messages (potential bug)
+            # Or if no native validation triggered
+            has_validation_msg = await page.evaluate("() => document.querySelectorAll(':invalid').length > 0")
+            
+            if not has_validation_msg:
+                # Potential weak validation if it's a 'critical' form
+                severity = classify_severity("form_validation", "empty submission")
+                ss_path = get_ss_path("form_validation")
+                img_bytes = await safe_screenshot(page, ss_path)
+                
+                issues.append({
+                    "page": current_url,
+                    "type": "form_validation",
+                    "issue": "Weak Validation: Empty form submission accepted",
+                    "severity": "medium",
+                    "screenshot": ss_path
+                })
+                scans_db[scan_id]["form_validation_errors"] += 1 
+                emit_issue("form_validation", severity, "Empty form accepted")
+                emit_log("FORM ISSUE DETECTED: Empty submission accepted")
+                
+                # Update heatmap for bug location
+                box = await form.bounding_box()
+                if box:
+                    heatmap_data.append({"x": box["x"] + box["width"]/2, "y": box["y"] + box["height"]/2, "type": "BUG", "intensity": 0.8})
+
+            # Reload to reset state for next test (Step 8)
+            await page.reload()
+            await page.wait_for_timeout(500)
+            
+            # Sub-test 2: Invalid Email Format
+            email_inps = await page.query_selector_all("input[type='email']")
+            if email_inps:
+                emit_log(f"Form {i+1}: Testing invalid email 'abc@'...")
+                await email_inps[0].fill("abc@")
+                await submit.click(force=True)
+                await page.wait_for_timeout(500)
+                
+                is_invalid = await page.evaluate("(el) => el.checkValidity() === false", email_inps[0])
+                if not is_invalid:
+                    severity = "medium"
+                    ss_path = get_ss_path("form_validation")
+                    await safe_screenshot(page, ss_path)
+                    issues.append({
+                        "page": current_url,
+                        "type": "form_validation",
+                        "issue": "Weak Validation: Invalid email format 'abc@' accepted",
+                        "severity": severity,
+                        "screenshot": ss_path
+                    })
+                    scans_db[scan_id]["form_validation_errors"] += 1
+                    emit_issue("form_validation", severity, "Malformed email accepted")
+
+            # Step 8: Non-destructive reload
+            await page.reload()
+
+    except Exception as e:
+        print(f"FORM TESTING ERROR: {e}") # Step 6: Safe execution
+        return # Continue scanning
+
 def classify_severity(issue_type: str, context: str = "") -> str:
     """
     AI Bug Classification (Simple ML Classifier)
@@ -50,11 +138,23 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
             "broken_links": scans_db[scan_id]["broken_links"],
             "ui_issues": scans_db[scan_id]["ui_issues"],
             "form_errors": scans_db[scan_id]["form_errors"],
+            "form_validation": scans_db[scan_id]["form_validation_errors"],
             "js_errors": scans_db[scan_id]["js_errors"]
         }})
         
     def emit_issue(issue_type, severity, msg):
         emit({"type": "issue_detected", "issue": {"type": issue_type, "severity": severity, "message": msg}})
+
+    scans_db[scan_id] = {
+        "status": "scanning",
+        "broken_links": 0,
+        "ui_issues": 0,
+        "form_errors": 0,
+        "form_validation_errors": 0,
+        "performance_issues": 0,
+        "js_errors": 0,
+        "issues": []
+    }
 
     def on_console(msg):
         if msg.type == "error":
@@ -147,6 +247,14 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
                         b64_img = base64.b64encode(img_bytes).decode('utf-8')
                         emit({"type": "screenshot", "image": f"data:image/png;base64,{b64_img}"})
                     
+                    # Step 7: Call Modular Form Validation Test
+                    await test_form_validation(
+                        page, current_url, issues, scans_db, scan_id, 
+                        get_ss_path, safe_screenshot, heatmap_data, 
+                        emit_issue, emit_log, emit_metrics
+                    )
+
+                    # Performance Analysis
                     if load_time > 3.0:
                         severity = classify_severity("performance_issue")
                         issues.append({

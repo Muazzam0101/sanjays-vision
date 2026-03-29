@@ -131,6 +131,7 @@ async def generate_pdf_report(scan_id: str, results_data: dict, start_url: str):
         "links": results_data.get("broken_links", 0),
         "ui": results_data.get("ui_issues", 0),
         "forms": results_data.get("form_errors", 0),
+        "form_validation": results_data.get("form_validation_errors", 0),
         "performance": results_data.get("performance_issues", 0)
     }
 

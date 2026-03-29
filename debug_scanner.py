@@ -17,9 +17,10 @@ async def test_scan():
     
     manager = MockManager()
     
-    print("Starting direct scanner test on https://example.com...")
+    test_url = sys.argv[1] if len(sys.argv) > 1 else "file:///C:/Users/moham/Desktop/Sanjays%20Vision/backend/test_forms.html"
+    print(f"Starting direct scanner test on {test_url}...")
     try:
-        await run_scan("test-id", "https://example.com", scans_db, manager)
+        await run_scan("test-id", test_url, scans_db, manager)
         print(f"Final status in DB: {scans_db['test-id']['status']}")
         
         heatmap_file = f"reports/test-id_heatmap.png"

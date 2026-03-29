@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Form Validation Test</title>
+</head>
+<body>
+    <h1>Form Validation Test Page</h1>
+    
+    <!-- Form 1: No validation (Vulnerable) -->
+    <section>
+        <h2>Vulnerable Form (No Validation)</h2>
+        <form id="vuln-form">
+            <label>Email: <input type="email" id="email-1"></label><br>
+            <label>Required field: <input type="text" id="req-1"></label><br>
+            <button type="submit">Submit Vuln</button>
+        </form>
+    </section>
+
+    <!-- Form 2: Native Validation (Secure) -->
+    <section>
+        <h2>Secure Form (Native Validation)</h2>
+        <form id="secure-form">
+            <label>Email: <input type="email" required id="email-2"></label><br>
+            <label>Required field: <input type="text" required id="req-2"></label><br>
+            <button type="submit">Submit Secure</button>
+        </form>
+    </section>
+
+    <div id="status"></div>
+
+    <script>
+        document.querySelectorAll('form').forEach(f => {
+            f.onsubmit = (e) => {
+                e.preventDefault();
+                document.getElementById('status').innerText = 'Submitted ' + f.id;
+            }
+        });
+    </script>
+</body>
+</html>
