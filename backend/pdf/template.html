@@ -61,6 +61,28 @@
                 <h3 style="margin-bottom: 10px;">AI VERDICT</h3>
                 <p style="text-transform: uppercase; font-weight: 700; line-height: 1.4;">The autonomous inspector has identified {{ issues|length }} primary anomalies in the system neural traversal. Strategic prioritization is required for immediate resolution.</p>
             </div>
+            
+            {% if heatmap_base64 %}
+            <div style="margin-top: 50px;">
+                <h2 style="font-size: 60px; border-bottom: 8px solid var(--black); line-height: 1; padding-bottom: 5px;">INTERACTION HEATMAP</h2>
+                <p class="heatmap-subtitle">AI ANALYSIS OF HIGH-DENSITY USER INTERACTION THREATS AND CLICK-COLLISION ZONES.</p>
+                
+                <div class="heatmap-legend-box">
+                    <div class="legend-item"><div class="square" style="background: var(--primary-red);"></div> HIGH ISSUE DENSITY</div>
+                    <div class="legend-item"><div class="square" style="background: var(--primary-yellow);"></div> MEDIUM PRIORITY</div>
+                    <div class="legend-item"><div class="square" style="background: var(--primary-blue);"></div> LOW FREQUENCY</div>
+                </div>
+
+                <div class="heatmap-container">
+                    <img src="{{ heatmap_base64 }}" alt="Interaction Heatmap">
+                </div>
+                <div style="margin-top: 10px; font-weight: 900; font-size: 11px; text-transform: uppercase;">FIG: USER INTERACTION HEATMAP</div>
+            </div>
+            {% else %}
+            <div style="margin-top: 50px; border: 3px dashed black; padding: 20px; text-align: center;">
+                <p style="font-weight: 900; opacity: 0.6;">No significant interaction data available</p>
+            </div>
+            {% endif %}
         </div>
 
         <!-- PAGE 3+: BUG REPORTS -->
@@ -83,14 +105,6 @@
                     <div class="screenshot-frame">
                         <img src="{{ issue.screenshot_base64 }}" alt="Issue Evidence">
                         <div class="fig-caption">FIG {{ loop.index }}.A: EVIDENCE CAPTURE</div>
-                    </div>
-                    {% endif %}
-                    
-                    {# Heatmap Logic (Step 6) #}
-                    {% if issue.heatmap_base64 %}
-                    <div class="screenshot-frame" style="margin-top: 15px; border-color: var(--primary-blue);">
-                        <img src="{{ issue.heatmap_base64 }}" alt="Heatmap Evidence">
-                        <div class="fig-caption" style="background: var(--primary-blue);">FIG {{ loop.index }}.B: ELEMENT HEATMAP</div>
                     </div>
                     {% endif %}
                 </div>

@@ -28,13 +28,15 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
     issues = []
     suggestions = set()
     js_errors_detected = []
+    heatmap_data = [] # Interaction coordinates (Step 2)
     
     screenshot_counter = 0
 
     def get_ss_path(issue_type: str) -> str:
         nonlocal screenshot_counter
         screenshot_counter += 1
-        return f"screenshots/{scan_id}_{issue_type}_{screenshot_counter}.png"
+        rel_path = f"screenshots/{scan_id}_{issue_type}_{screenshot_counter}.png"
+        return os.path.abspath(rel_path)
 
     def emit(event_data):
         if manager:
@@ -104,6 +106,11 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
             # Attach Console Listeners for JS Error detection
             page.on("console", on_console)
             page.on("requestfailed", on_request_failed)
+
+            # Heatmap Mouse Interaction Tracker (Step 2)
+            async def on_click(event):
+                heatmap_data.append({"x": event["x"], "y": event["y"], "type": "CLICK", "intensity": 0.5})
+            page.on("click", on_click)
             
             max_pages = 3
             
@@ -131,6 +138,11 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
                     # Capture basic navigation screenshot for the stream (SAFE)
                     nav_ss_path = get_ss_path("nav")
                     img_bytes = await safe_screenshot(page, nav_ss_path)
+                    
+                    # Step 5: Always store main_screenshot for the Heatmap base
+                    if img_bytes and "main_screenshot" not in scans_db[scan_id]:
+                        scans_db[scan_id]["main_screenshot"] = nav_ss_path
+
                     if img_bytes:
                         b64_img = base64.b64encode(img_bytes).decode('utf-8')
                         emit({"type": "screenshot", "image": f"data:image/png;base64,{b64_img}"})
@@ -206,6 +218,14 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
                             scans_db[scan_id]["ui_issues"] += 1
                             emit_issue("ui", severity, "Image lacks 'src'")
                             emit_metrics()
+                            
+                            # Track Bug Location (Step 2)
+                            try:
+                                box = await img.bounding_box()
+                                if box:
+                                    heatmap_data.append({"x": box["x"] + box["width"]/2, "y": box["y"] + box["height"]/2, "type": "BUG", "intensity": 1.0})
+                            except: pass
+
                             if img_bytes:
                                 b64_img = base64.b64encode(img_bytes).decode('utf-8')
                                 emit({"type": "screenshot", "image": f"data:image/png;base64,{b64_img}"})
@@ -221,6 +241,14 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
                             issues.append({"page": current_url, "type": "accessibility_issue", "severity": severity, "description": "Image is missing 'alt' label property.", "screenshot": ss_path})
                             suggestions.add("Add alt tags to all image assets for 100% ADA compliance.")
                             emit_issue("accessibility", severity, "Missing 'alt' label")
+                            
+                            # Track Bug Location (Step 2)
+                            try:
+                                box = await img.bounding_box()
+                                if box:
+                                    heatmap_data.append({"x": box["x"] + box["width"]/2, "y": box["y"] + box["height"]/2, "type": "BUG", "intensity": 1.0})
+                            except: pass
+
                             if img_bytes:
                                 b64_img = base64.b64encode(img_bytes).decode('utf-8')
                                 emit({"type": "screenshot", "image": f"data:image/png;base64,{b64_img}"})
@@ -251,6 +279,11 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
                                 scans_db[scan_id]["ui_issues"] += 1
                                 emit_issue("ux", severity, "Small clickable area")
                                 emit_metrics()
+                                
+                                # Use already calculated box
+                                if box:
+                                    heatmap_data.append({"x": box["x"] + box["width"]/2, "y": box["y"] + box["height"]/2, "type": "BUG", "intensity": 1.0})
+                                
                                 if img_bytes:
                                     b64_img = base64.b64encode(img_bytes).decode('utf-8')
                                     emit({"type": "screenshot", "image": f"data:image/png;base64,{b64_img}"})
@@ -296,6 +329,14 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
                                     suggestions.add("Ensure deep input sanitization for XSS and SQL injection payloads server-side.")
                                     emit_issue("security", severity, description)
                                     emit_metrics()
+
+                                    # Form location (Step 2)
+                                    try:
+                                        box = await inp.bounding_box()
+                                        if box:
+                                            heatmap_data.append({"x": box["x"] + box["width"]/2, "y": box["y"] + box["height"]/2, "type": "BUG", "intensity": 1.0})
+                                    except: pass
+
                                     if img_bytes:
                                         b64_img = base64.b64encode(img_bytes).decode('utf-8')
                                         emit({"type": "screenshot", "image": f"data:image/png;base64,{b64_img}"})
@@ -356,6 +397,7 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
     scans_db[scan_id]["health_score"] = score
     scans_db[scan_id]["issues"] = issues
     scans_db[scan_id]["suggestions"] = list(suggestions)
+    scans_db[scan_id]["heatmap_data"] = heatmap_data # Push to DB (Step 8)
     
     emit_log("Generating Cryptographic PDF Report...")
     # Compile

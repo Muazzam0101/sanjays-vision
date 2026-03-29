@@ -203,3 +203,46 @@ img {
     font-weight: 900;
     opacity: 0.5;
 }
+
+/* --- STEP 6: HEATMAP NEOBRUTALISM --- */
+.heatmap-container {
+    border: 5px solid var(--black);
+    padding: 0;
+    margin-top: 10px;
+    background: #FFF;
+    overflow: hidden;
+}
+
+.heatmap-legend-box {
+    border: 2px solid var(--black);
+    padding: 12px 20px;
+    display: flex;
+    justify-content: flex-start;
+    gap: 30px;
+    margin-top: 20px;
+    background: #FFF;
+}
+
+.heatmap-subtitle {
+    font-size: 14px;
+    font-weight: 700;
+    margin-top: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    line-height: 1.4;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.square {
+    width: 14px;
+    height: 14px;
+    border: 1px solid black;
+}

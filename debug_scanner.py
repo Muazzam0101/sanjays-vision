@@ -21,8 +21,23 @@ async def test_scan():
     try:
         await run_scan("test-id", "https://example.com", scans_db, manager)
         print(f"Final status in DB: {scans_db['test-id']['status']}")
+        
+        heatmap_file = f"reports/test-id_heatmap.png"
+        if os.path.exists(heatmap_file):
+            print(f"SUCCESS: Heatmap image found at {heatmap_file}")
+        else:
+            print("FAILURE: Heatmap image NOT found.")
+            
+        pdf_file = f"reports/test-id.pdf"
+        if os.path.exists(pdf_file):
+            print(f"SUCCESS: PDF report found at {pdf_file}")
+        else:
+            print("FAILURE: PDF report NOT found.")
+            
     except Exception as e:
         print(f"Test failed with error: {e}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
     asyncio.run(test_scan())
