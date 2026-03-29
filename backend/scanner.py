@@ -61,8 +61,36 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
     def on_request_failed(request):
         js_errors_detected.append(f"Failed network resource: {request.url}")
 
+    async def safe_screenshot(page, path, **kwargs):
+        """
+        Safety Wrapper for screenshots to prevent fatal crashes
+        """
+        try:
+            return await page.screenshot(path=path, **kwargs)
+        except Exception as e:
+            logger.warning(f"Screenshot failed for {path}: {e}")
+            return None
+
+    async def robust_goto(page, url, max_retries=2):
+        """
+        Robust navigation with retries and 60s timeout
+        """
+        for attempt in range(max_retries + 1):
+            try:
+                logger.info(f"Navigating to {url} (Attempt {attempt+1})")
+                return await page.goto(url, wait_until="domcontentloaded", timeout=60000)
+            except Exception as e:
+                logger.warning(f"Navigation failed (Attempt {attempt+1}): {e}")
+                if attempt == max_retries:
+                    raise e
+                await asyncio.sleep(2)
+
     emit_log(f"Initializing V2 Smart Scanner for {start_url}...")
     emit({"type": "progress", "value": 5})
+
+    # Initialize scan record in DB if not present (should be there from main.py)
+    if scan_id in scans_db:
+        scans_db[scan_id]["status"] = "processing"
 
     try:
         async with async_playwright() as p:
@@ -93,18 +121,19 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
                 emit_log(f"Navigating to {current_url}...")
                 
                 try:
-                    # Measure pure DOM Performance load
+                    # Measure pure DOM Performance load using ROBUST GOTO
                     start_time = time.time()
-                    response = await page.goto(current_url, wait_until="domcontentloaded", timeout=25000)
+                    response = await robust_goto(page, current_url)
                     load_time = time.time() - start_time
                     
                     emit_log(f"Page loaded in {load_time:.2f}s")
                     
-                    # Capture basic navigation screenshot for the stream
+                    # Capture basic navigation screenshot for the stream (SAFE)
                     nav_ss_path = get_ss_path("nav")
-                    img_bytes = await page.screenshot(path=nav_ss_path)
-                    b64_img = base64.b64encode(img_bytes).decode('utf-8')
-                    emit({"type": "screenshot", "image": f"data:image/png;base64,{b64_img}"})
+                    img_bytes = await safe_screenshot(page, nav_ss_path)
+                    if img_bytes:
+                        b64_img = base64.b64encode(img_bytes).decode('utf-8')
+                        emit({"type": "screenshot", "image": f"data:image/png;base64,{b64_img}"})
                     
                     if load_time > 3.0:
                         severity = classify_severity("performance_issue")
@@ -124,7 +153,7 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
                     # Connection sanity
                     if response and response.status >= 400:
                         ss_path = get_ss_path("broken_link")
-                        await page.screenshot(path=ss_path)
+                        await safe_screenshot(page, ss_path)
                         severity = classify_severity("broken_link")
                         issues.append({
                             "page": current_url, "type": "broken_link", "severity": severity,
@@ -171,14 +200,15 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
                             except:
                                 pass
                             ss_path = get_ss_path("ui_issue")
-                            img_bytes = await page.screenshot(path=ss_path)
-                            b64_img = base64.b64encode(img_bytes).decode('utf-8')
+                            img_bytes = await safe_screenshot(page, ss_path)
                             severity = classify_severity("ui_issue")
                             issues.append({"page": current_url, "type": "ui_issue", "severity": severity, "description": "Image element lacks valid 'src' property.", "screenshot": ss_path})
                             scans_db[scan_id]["ui_issues"] += 1
                             emit_issue("ui", severity, "Image lacks 'src'")
                             emit_metrics()
-                            emit({"type": "screenshot", "image": f"data:image/png;base64,{b64_img}"})
+                            if img_bytes:
+                                b64_img = base64.b64encode(img_bytes).decode('utf-8')
+                                emit({"type": "screenshot", "image": f"data:image/png;base64,{b64_img}"})
                             
                         if alt is None or alt.strip() == "":
                             try:
@@ -186,13 +216,14 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
                             except:
                                 pass
                             ss_path = get_ss_path("accessibility_issue")
-                            img_bytes = await page.screenshot(path=ss_path)
-                            b64_img = base64.b64encode(img_bytes).decode('utf-8')
+                            img_bytes = await safe_screenshot(page, ss_path)
                             severity = classify_severity("accessibility_issue")
                             issues.append({"page": current_url, "type": "accessibility_issue", "severity": severity, "description": "Image is missing 'alt' label property.", "screenshot": ss_path})
                             suggestions.add("Add alt tags to all image assets for 100% ADA compliance.")
                             emit_issue("accessibility", severity, "Missing 'alt' label")
-                            emit({"type": "screenshot", "image": f"data:image/png;base64,{b64_img}"})
+                            if img_bytes:
+                                b64_img = base64.b64encode(img_bytes).decode('utf-8')
+                                emit({"type": "screenshot", "image": f"data:image/png;base64,{b64_img}"})
                             
                     # UX Click Target Analysis
                     clickables = await page.query_selector_all("a, button, input[type='submit']")
@@ -214,19 +245,18 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
                                 except:
                                     pass
                                 ss_path = get_ss_path("ux_issue")
-                                img_bytes = await page.screenshot(path=ss_path)
-                                b64_img = base64.b64encode(img_bytes).decode('utf-8')
+                                img_bytes = await safe_screenshot(page, ss_path)
                                 severity = classify_severity("ux_issue")
                                 issues.append({"page": current_url, "type": "ux_issue", "severity": severity, "description": f"Poor UX - Click target is too small for mobile touch standards ({int(box['width'])}x{int(box['height'])})", "screenshot": ss_path})
                                 scans_db[scan_id]["ui_issues"] += 1
                                 emit_issue("ux", severity, "Small clickable area")
                                 emit_metrics()
-                                emit({"type": "screenshot", "image": f"data:image/png;base64,{b64_img}"})
+                                if img_bytes:
+                                    b64_img = base64.b64encode(img_bytes).decode('utf-8')
+                                    emit({"type": "screenshot", "image": f"data:image/png;base64,{b64_img}"})
                         except Exception:
                             pass
-
-                    emit_log("Testing Input Forms for vulnerabilities...")
-                    # Form Auditing (SQLi, XSS, Overflow bounds)
+# Form Auditing (SQLi, XSS, Overflow bounds)
                     forms = await page.query_selector_all("form")
                     for form in forms[:2]: 
                         inputs = await form.query_selector_all("input[type='text'], input[type='email'], input[type='search']")
@@ -252,8 +282,7 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
                                 if is_valid:
                                     ss_path = get_ss_path("form_error")
                                     await inp.evaluate("(el) => el.style.border = '5px solid red'")
-                                    img_bytes = await page.screenshot(path=ss_path)
-                                    b64_img = base64.b64encode(img_bytes).decode('utf-8')
+                                    img_bytes = await safe_screenshot(page, ss_path)
                                     
                                     severity = classify_severity("form_error", payload)
                                     issues.append({
@@ -267,24 +296,23 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
                                     suggestions.add("Ensure deep input sanitization for XSS and SQL injection payloads server-side.")
                                     emit_issue("security", severity, description)
                                     emit_metrics()
-                                    emit({"type": "screenshot", "image": f"data:image/png;base64,{b64_img}"})
+                                    if img_bytes:
+                                        b64_img = base64.b64encode(img_bytes).decode('utf-8')
+                                        emit({"type": "screenshot", "image": f"data:image/png;base64,{b64_img}"})
                                     break
 
                 except PlaywrightError as pe:
                     logger.warning(f"Timeout parsing {current_url}: {pe}")
+                    scans_db[scan_id]["status"] = "partial"
                 except Exception as ex:
                     logger.error(f"Unexpected parsing error {current_url}: {ex}")
+                    scans_db[scan_id]["status"] = "partial"
                     
             # Global Javascript Execution Evaluation
             emit_log("Finalizing Runtime Evaluation...")
             for err in js_errors_detected[:3]:
                 ss_path = get_ss_path("js_error")
-                b64_img = None
-                try:
-                    img_bytes = await page.screenshot(path=ss_path)
-                    b64_img = base64.b64encode(img_bytes).decode('utf-8')
-                except:
-                    ss_path = None
+                img_bytes = await safe_screenshot(page, ss_path)
                 
                 severity = classify_severity("js_error")
                 issues.append({"page": "Global JS Runtime", "type": "js_error", "severity": severity, "description": f"JavaScript Error: {err[:150]}", "screenshot": ss_path})
@@ -292,29 +320,32 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
                 suggestions.add("Resolve all console runtime warnings prior to React hydration mapping.")
                 emit_issue("js_error", severity, f"JS Error: {err[:50]}")
                 emit_metrics()
-                if b64_img:
+                if img_bytes:
+                    b64_img = base64.b64encode(img_bytes).decode('utf-8')
                     emit({"type": "screenshot", "image": f"data:image/png;base64,{b64_img}"})
 
             await context.close()
             await browser.close()
-            
+            if scans_db[scan_id]["status"] != "partial":
+                scans_db[scan_id]["status"] = "completed"
+
     except Exception as fatal_e:
         tb = traceback.format_exc()
-        logger.error(f"Scanner crashed fatally: {fatal_e}\n{tb}")
-        scans_db[scan_id]["status"] = "failed"
+        logger.error(f"Scanner experienced a major issue: {repr(fatal_e)}\n{tb}")
+        scans_db[scan_id]["status"] = "partial" # Mark as partial instead of failed
         scans_db[scan_id]["error_details"] = tb
-        emit({"type": "failed", "message": "Crawler fatally crashed."})
-        return
+        emit({"type": "log", "message": f"Critical Error in Crawler: {repr(fatal_e)}. Generating report for partial findings..."})
 
+    # FINALIZATION PHASE (ALWAYS RUNS)
     emit({"type": "progress", "value": 90})
     emit_log("Applying Advanced Mathematical Scoring algorithms...")
 
     # Advanced Mathematical Scoring
-    bl = scans_db[scan_id]["broken_links"]
-    ui = scans_db[scan_id]["ui_issues"]
-    fe = scans_db[scan_id]["form_errors"]
-    js = scans_db[scan_id]["js_errors"]
-    pi = scans_db[scan_id]["performance_issues"]
+    bl = scans_db[scan_id].get("broken_links", 0)
+    ui = scans_db[scan_id].get("ui_issues", 0)
+    fe = scans_db[scan_id].get("form_errors", 0)
+    js = scans_db[scan_id].get("js_errors", 0)
+    pi = scans_db[scan_id].get("performance_issues", 0)
     
     score = 100 - (bl * 5) - (ui * 3) - (fe * 4) - (js * 3) - (pi * 2)
     score = max(0, min(100, score))
@@ -333,7 +364,9 @@ async def run_scan(scan_id: str, start_url: str, scans_db: dict, manager=None):
     except Exception as pdf_e:
         logger.error(f"Generate PDF failed: {pdf_e}")
         
-    scans_db[scan_id]["status"] = "completed"
+    if scans_db[scan_id]["status"] != "partial":
+        scans_db[scan_id]["status"] = "completed"
+    
     emit({"type": "progress", "value": 100})
-    emit_log("Scan Successfully Completed. Report Archived.")
+    emit_log(f"Scan Finished. Final Status: {scans_db[scan_id]['status']}")
     emit({"type": "complete"})

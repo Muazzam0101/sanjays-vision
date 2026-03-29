@@ -66,6 +66,7 @@ async def generate_pdf_report(scan_id: str, results_data: dict, start_url: str):
         health_score=health_score,
         metrics=metrics,
         issues=issues,
+        status=results_data.get("status", "unknown").upper(),
         nested_styles=css_style
     )
 

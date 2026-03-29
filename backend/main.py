@@ -85,7 +85,8 @@ async def start_scan(request: ScanRequest):
         "performance_issues": 0,
         "health_score": 100,
         "issues": [],
-        "suggestions": []
+        "suggestions": [],
+        "start_url": request.url
     }
 
     # Run scan in background
@@ -108,8 +109,7 @@ async def run_scan_wrapper(scan_id, url):
 
     try:
         await run_scan(scan_id, url, scans_db, manager)
-
-        scans_db[scan_id]["status"] = "completed"
+        # Note: Status update to 'completed' happens inside run_scan finalize phase
 
         await manager.send(scan_id, {
             "type": "complete"
@@ -132,7 +132,13 @@ async def list_scans():
 @app.get("/results/{scan_id}")
 async def get_results(scan_id: str):
     if scan_id not in scans_db:
-        raise HTTPException(status_code=404, detail="Scan ID not found")
+        # Check if it looks like a valid UUID before returning 404
+        try:
+            uuid.UUID(scan_id)
+            return {"status": "processing", "message": "Scan initialized or in queue"}
+        except ValueError:
+            raise HTTPException(status_code=404, detail="Invalid Scan ID format")
+            
     return scans_db[scan_id]
 
 # ---------------- REPORT ----------------
@@ -141,9 +147,18 @@ async def get_report(scan_id: str):
     pdf_path = f"reports/{scan_id}.pdf"
 
     if not os.path.exists(pdf_path):
-        if scan_id in scans_db and scans_db[scan_id]["status"] != "completed":
-            raise HTTPException(status_code=400, detail="Scan is still processing")
-        raise HTTPException(status_code=404, detail="Report not found")
+        # If the scan is completed but the PDF hasn't been generated yet, generate it on demand
+        if scan_id in scans_db and scans_db[scan_id]["status"] == "completed":
+            from pdf import generate_pdf_report
+            # Reuse stored results and start_url (assuming they are stored in scans_db)
+            results = scans_db[scan_id]
+            start_url = results.get("start_url", "")
+            # Generate PDF synchronously (await needed)
+            pdf_path = await generate_pdf_report(scan_id, results, start_url)
+        else:
+            if scan_id in scans_db and scans_db[scan_id]["status"] != "completed":
+                raise HTTPException(status_code=400, detail="Scan is still processing")
+            raise HTTPException(status_code=404, detail="Report not found")
 
     return FileResponse(
         pdf_path,
@@ -165,4 +180,4 @@ async def websocket_endpoint(websocket: WebSocket, scan_id: str):
 # ---------------- RUN LOCAL ----------------
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)

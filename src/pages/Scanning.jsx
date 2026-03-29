@@ -80,7 +80,9 @@ const Scanning = () => {
         }, 3000);
 
         return () => {
-            ws.close();
+            if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+                ws.close();
+            }
             clearInterval(interval);
         };
     }, [scanId, navigate]);

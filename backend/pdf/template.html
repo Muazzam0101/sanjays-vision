@@ -15,6 +15,11 @@
             <div class="cover-section thick-border">
                 <h1 class="cover-title">SANJAY'S<br>VISION</h1>
                 <div class="cover-subtitle">AUTONOMOUS QA REPORT</div>
+                {% if status == "PARTIAL" %}
+                <div style="background: var(--primary-red); color: white; padding: 10px; margin-top: 20px; font-weight: 900; border: 5px solid black; animation: blink 1s infinite; text-align: center;">
+                    ATTENTION: PARTIAL SCAN // DATA INCOMPLETE
+                </div>
+                {% endif %}
             </div>
             
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-top: 40px;">
