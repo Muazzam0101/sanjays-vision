@@ -226,31 +226,29 @@ Advanced security scanning
 
 ---
 
-## 👨‍💻 Authors
 ## 🤝 Contributors
 
-<div align="center">
+<div align="left">
 
 <table>
 <tr>
 
 <td align="center">
-<img src="https://github.com/Aryan Khandare.png width="100px;" style="border-radius:50%"/>
+<img src="https://github.com/AryanKhandare.png" width="100px;" style="border-radius:50%;" />
 <br><br>
-<a href="(https://github.com/AryanKhandare)"><b>Aryan Khandare</b></a>
+<a href="https://github.com/AryanKhandare"><b>Aryan Khandare</b></a>
 </td>
 
 <td align="center">
-<img src="https://github.com/Muazzam0101.png" width="100px;" style="border-radius:50%"/>
+<img src="https://github.com/Muazzam0101.png" width="100px;" style="border-radius:50%;" />
 <br><br>
-<a href="(https://github.com/Muazzam0101)]"><b>Muazzam0101l</b></a>
+<a href="https://github.com/Muazzam0101"><b>Muazzam0101</b></a>
 </td>
 
 </tr>
 </table>
 
 </div>
-
 ## 💡 Contributing
 
 Contributions are welcome! Feel free to submit a Pull Request 🚀
@@ -270,7 +268,5 @@ git push origin feature/amazing-feature
 # 5. Open a Pull Request
 ```
 ---
-
-## 🌊
 
 <img src="https://capsule-render.vercel.app/api?type=waving&color=0:00F7FF,100:007CF0&height=120&section=footer"/>
