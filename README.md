@@ -69,6 +69,7 @@
 ---
 
 ## 📁 Project Structure
+```
 sanjays-vision/
 │
 ├── frontend/
@@ -88,7 +89,7 @@ sanjays-vision/
 │   └── reports/
 │
 └── README.md
-
+```
 
 ---
 
