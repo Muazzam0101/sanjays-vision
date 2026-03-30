@@ -1,6 +1,33 @@
-# 🚀 Sanjay’s Vision – Autonomous QA Inspector
 
-> 🔍 AI-powered cybersecurity & QA automation system that scans websites, detects issues, and visualizes them in real-time.
+<h1 align="center">
+  🚀 Sanjay's Vision – Autonomous QA Inspector
+</h1>
+
+<p align="center">
+  <img src="https://readme-typing-svg.herokuapp.com?color=00F7FF&size=28&center=true&vCenter=true&width=800&lines=AI+Powered+QA+Automation;Real-Time+Website+Scanning;WebSocket+Live+Visualization" />
+</p>
+
+---
+
+## 🛠 Tech Stack
+
+<p align="center">
+
+<img src="https://img.shields.io/badge/Frontend-Vite-blue?style=for-the-badge&logo=vite"/>
+<img src="https://img.shields.io/badge/Backend-FastAPI-green?style=for-the-badge&logo=fastapi"/>
+<img src="https://img.shields.io/badge/Automation-Playwright-purple?style=for-the-badge"/>
+<img src="https://img.shields.io/badge/Realtime-WebSockets-orange?style=for-the-badge"/>
+<img src="https://img.shields.io/badge/Deployment-Render-black?style=for-the-badge"/>
+
+</p>
+
+---
+
+## ⚡ Live Description
+
+<p align="center">
+  <img src="https://readme-typing-svg.herokuapp.com?color=00F7FF&size=22&center=true&vCenter=true&width=700&lines=Scan+Websites+Automatically;Detect+UI+%2B+Security+Issues;Generate+Reports+with+Screenshots" />
+</p>
 
 ---
 
