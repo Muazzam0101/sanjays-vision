@@ -218,6 +218,14 @@ Advanced security scanning
 
 ---
 
-### 👨‍💻 Authors
-Mohammad Muazzam
-Aryan Khandare
+## 👨‍💻 Authors
+
+<div align="center">
+
+👤 **Mohammad Muazzam**  
+[![GitHub](https://img.shields.io/badge/GitHub-Profile-black?logo=github)](https://github.com/Muazzam0101)
+
+👤 **Aryan Khandare**  
+[![GitHub](https://img.shields.io/badge/GitHub-Profile-black?logo=github)](https://github.com/AryanKhandare)
+
+</div>
