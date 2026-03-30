@@ -249,7 +249,6 @@ Advanced security scanning
 </table>
 
 </div>
-## 💡 Contributing
 
 Contributions are welcome! Feel free to submit a Pull Request 🚀
 
