@@ -235,7 +235,7 @@ Advanced security scanning
 <tr>
 
 <td align="center">
-<img src="(https://github.com/AryanKhandare)" width="100px;" style="border-radius:50%"/>
+<img src="https://github.com/Aryan Khandare.png width="100px;" style="border-radius:50%"/>
 <br><br>
 <a href="(https://github.com/AryanKhandare)"><b>Aryan Khandare</b></a>
 </td>
@@ -250,8 +250,6 @@ Advanced security scanning
 </table>
 
 </div>
-
----
 
 ## 💡 Contributing
 
@@ -270,6 +268,8 @@ git commit -m "Add some amazing feature"
 git push origin feature/amazing-feature
 
 # 5. Open a Pull Request
+```
+---
 
 ## 🌊
 
