@@ -6,7 +6,7 @@
 
 ## 🌐 Live Demo
 
-- 🔗 Frontend: *([Add your Vercel URL here](https://sanjays-vision.vercel.app/))*
+- 🔗 Frontend: *((https://sanjays-vision.vercel.app/))*
 - 🔗 Backend: https://sanjays-vision-backend.onrender.com
 
 ---
@@ -72,25 +72,23 @@
 sanjays-vision/
 │
 ├── frontend/
-│ ├── src/
-│ │ ├── components/
-│ │ ├── pages/
-│ │ ├── config/api.js
-│ │ └── main.jsx
-│ └── .env
+│   ├── src/
+│   │   ├── components/
+│   │   ├── pages/
+│   │   ├── config/api.js
+│   │   └── main.jsx
+│   └── .env
 │
 ├── backend/
-│ ├── main.py
-│ ├── scanner.py
-│ ├── requirements.txt
-│ ├── build.sh
-│ ├── screenshots/
-│ └── reports/
+│   ├── main.py
+│   ├── scanner.py
+│   ├── requirements.txt
+│   ├── build.sh
+│   ├── screenshots/
+│   └── reports/
 │
 └── README.md
 
-
----
 
 ---
 
@@ -107,7 +105,6 @@ VITE_WS_URL=wss://sanjays-vision-backend.onrender.com/ws
 
 ### 🔧 Backend Setup
 
-```bash
 cd backend
 
 pip install -r requirements.txt
@@ -117,36 +114,46 @@ uvicorn main:app --reload
 Open:
 
 http://127.0.0.1:8000/docs
-💻 Frontend Setup
+
+---
+
+### 💻 Frontend Setup
 cd frontend
 
 npm install
 npm run dev
-🌐 Deployment
+
+---
+
+### 🌐 Deployment
 🚀 Backend (Render)
-Push code to GitHub
-
-Create Web Service on Render
-
-Configure:
+1. Push code to GitHub
+2. Create Web Service on Render
+3. Configure:
 
 Build Command: bash build.sh
 Start Command: uvicorn main:app --host 0.0.0.0 --port 10000
-⚡ Frontend (Vercel)
-Import GitHub repo
 
-Add Environment Variables
+---
 
-Deploy
+### ⚡ Frontend (Vercel)
+1. Import GitHub repo
+2. Add Environment Variables
+3.Deploy
 
-🔌 API Endpoints
+---
+
+### 🔌 API Endpoints
 Start Scan
 POST /scan
 Get Results
 GET /results/{scan_id}
 Get Report
 GET /report/{scan_id}
-🔗 WebSocket
+
+---
+
+### 🔗 WebSocket
 wss://sanjays-vision-backend.onrender.com/ws/{scan_id}
 Events:
 log
@@ -161,7 +168,9 @@ issue_detected
 
 complete
 
-🧪 Testing URLs
+---
+
+### 🧪 Testing URLs
 Use these safe demo sites:
 
 https://demo.testfire.net
@@ -170,14 +179,18 @@ https://demoqa.com
 
 https://example.com
 
-⚠️ Limitations
+---
+
+### ⚠️ Limitations
 Free Render backend has cold start (~2–5 min)
 
 Large websites may be slow
 
 Bot-protected sites are not supported
 
-🏆 Hackathon Highlights
+---
+
+### 🏆 Hackathon Highlights
 Real-time AI agent simulation
 
 WebSocket-powered live updates
@@ -186,10 +199,14 @@ Automated QA + cybersecurity fusion
 
 Futuristic UI design
 
-🎤 Demo Line
+---
+
+### 🎤 Demo Line
 “Our system autonomously scans websites, detects issues, and streams results in real-time like an AI QA engineer.”
 
-📌 Future Improvements
+---
+
+### 📌 Future Improvements
 AI-based issue explanation
 
 Authentication testing
@@ -198,8 +215,8 @@ CI/CD integration
 
 Advanced security scanning
 
-👨‍💻 Authors
+---
+
+### 👨‍💻 Authors
 Mohammad Muazzam
-
 Aryan Khandare
-
