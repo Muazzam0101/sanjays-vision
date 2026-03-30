@@ -76,25 +76,6 @@
 
 ---
 
-## 🧱 Tech Stack
-
-### Frontend
-- React (Vite)
-- Tailwind CSS
-- WebSockets
-
-### Backend
-- FastAPI
-- Playwright
-- WebSockets
-- ReportLab
-
-### Deployment
-- Frontend → Vercel
-- Backend → Render
-
----
-
 ## 📁 Project Structure
 ```
 sanjays-vision/
@@ -246,13 +227,50 @@ Advanced security scanning
 ---
 
 ## 👨‍💻 Authors
+## 🤝 Contributors
 
 <div align="center">
 
-👤 **Mohammad Muazzam**  
-[![GitHub](https://img.shields.io/badge/GitHub-Profile-black?logo=github)](https://github.com/Muazzam0101)
+<table>
+<tr>
 
-👤 **Aryan Khandare**  
-[![GitHub](https://img.shields.io/badge/GitHub-Profile-black?logo=github)](https://github.com/AryanKhandare)
+<td align="center">
+<img src="(https://github.com/AryanKhandare)" width="100px;" style="border-radius:50%"/>
+<br><br>
+<a href="(https://github.com/AryanKhandare)"><b>Aryan Khandare</b></a>
+</td>
+
+<td align="center">
+<img src="https://github.com/Muazzam0101.png" width="100px;" style="border-radius:50%"/>
+<br><br>
+<a href="(https://github.com/Muazzam0101)]"><b>Muazzam0101l</b></a>
+</td>
+
+</tr>
+</table>
 
 </div>
+
+---
+
+## 💡 Contributing
+
+Contributions are welcome! Feel free to submit a Pull Request 🚀
+
+```bash
+# 1. Fork the repository
+
+# 2. Create your feature branch
+git checkout -b feature/amazing-feature
+
+# 3. Commit your changes
+git commit -m "Add some amazing feature"
+
+# 4. Push to the branch
+git push origin feature/amazing-feature
+
+# 5. Open a Pull Request
+
+## 🌊
+
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:00F7FF,100:007CF0&height=120&section=footer"/>
